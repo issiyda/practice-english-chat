@@ -1,3 +1,87 @@
+# Practice English Chat
+
+英語チャット練習アプリです。Supabase 認証機能を実装しており、新規登録機能を提供します。
+
+## 機能
+
+- ✅ 新規登録機能（Server Actions 使用）
+- 🔐 Supabase 認証統合
+- 🛡️ セキュアな API キー管理
+
+## セットアップ
+
+### 1. 環境変数の設定
+
+`.env.local` ファイルを作成し、以下の環境変数を設定してください：
+
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
+
+**環境変数の取得方法：**
+
+1. [Supabase](https://supabase.com)でプロジェクトを作成
+2. Project Settings > API から以下を取得：
+   - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
+   - `anon public key` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `service_role secret key` → `SUPABASE_SERVICE_ROLE_KEY`
+
+### 2. 依存関係のインストール
+
+```bash
+yarn install
+```
+
+### 3. 開発サーバーの起動
+
+```bash
+yarn dev
+```
+
+[http://localhost:3000](http://localhost:3000) でアプリケーションにアクセスできます。
+
+### 4. 新規登録ページ
+
+[http://localhost:3000/auth/signup](http://localhost:3000/auth/signup) で新規登録ページにアクセスできます。
+
+## アーキテクチャ
+
+### セキュリティ機能
+
+- **Server Actions**: API キーがクライアントサイドに露出しない
+- **環境変数分離**: クライアント用とサーバー用のキーを適切に分離
+- **フォームバリデーション**: サーバーサイドでの入力検証
+
+### ファイル構成
+
+```
+lib/
+├── auth/
+│   └── actions.ts          # Server Actions (認証処理)
+├── supabase.ts             # Supabase設定
+components/
+├── auth/
+│   └── SignUpForm.tsx      # 新規登録フォーム
+app/
+├── auth/
+│   └── signup/
+│       └── page.tsx        # 新規登録ページ
+```
+
+## 今後の拡張予定
+
+- [ ] ログイン機能
+- [ ] パスワードリセット
+- [ ] プロフィール管理
+- [ ] セッション管理
+
+---
+
+## Original Next.js Documentation
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
