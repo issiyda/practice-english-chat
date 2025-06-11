@@ -9,46 +9,47 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
+    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-gradient-to-br from-slate-50 to-blue-50">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-5xl font-bold text-slate-800 mb-6">
             Practice English Chat
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-xl text-slate-700 font-medium">
             英語チャット練習アプリにようこそ
           </p>
         </div>
 
         {user ? (
           // ログイン済みの場合
-          <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full text-center">
-            <div className="mb-4">
-              <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-white text-xl font-bold">
+          <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-slate-200">
+            <div className="mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
+                <span className="text-white text-2xl font-bold">
                   {user.email?.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+              <h2 className="text-3xl font-bold text-slate-800 mb-4">
                 ようこそ！
               </h2>
-              <p className="text-gray-600 mb-2">
-                <strong>メール:</strong> {user.email}
+              <p className="text-slate-700 mb-3 text-lg">
+                <strong className="text-slate-800">メール:</strong> {user.email}
               </p>
               {user.user_metadata?.full_name && (
-                <p className="text-gray-600 mb-2">
-                  <strong>名前:</strong> {user.user_metadata.full_name}
+                <p className="text-slate-700 mb-3 text-lg">
+                  <strong className="text-slate-800">名前:</strong>{" "}
+                  {user.user_metadata.full_name}
                 </p>
               )}
-              <p className="text-sm text-gray-500">
+              <p className="text-slate-600 font-medium">
                 ログイン日時:{" "}
                 {new Date(user.last_sign_in_at || "").toLocaleString("ja-JP")}
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <button
-                className="w-full bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200"
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-3 focus:ring-green-400 focus:ring-offset-2 transition duration-200 font-semibold text-lg shadow-md"
                 disabled
               >
                 チャット開始（準備中）
@@ -57,7 +58,7 @@ export default async function Home() {
               <form action={signOut} className="w-full">
                 <button
                   type="submit"
-                  className="w-full bg-red-600 text-white py-3 px-6 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200"
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-lg hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-3 focus:ring-red-400 focus:ring-offset-2 transition duration-200 font-semibold text-lg shadow-md"
                 >
                   ログアウト
                 </button>
@@ -66,25 +67,25 @@ export default async function Home() {
           </div>
         ) : (
           // 未ログインの場合
-          <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full text-center">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-slate-200">
+            <h2 className="text-3xl font-bold text-slate-800 mb-4">
               始めましょう
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-slate-700 mb-8 text-lg">
               アカウントを作成して英語チャット練習を開始しましょう
             </p>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Link
                 href="/auth/signup"
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 block"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-3 focus:ring-blue-400 focus:ring-offset-2 transition duration-200 block font-semibold text-lg shadow-md"
               >
                 新規登録
               </Link>
 
               <Link
                 href="/auth/signin"
-                className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200 block"
+                className="w-full bg-slate-700 text-white py-4 px-6 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-3 focus:ring-slate-400 focus:ring-offset-2 transition duration-200 block font-semibold text-lg shadow-md"
               >
                 ログイン
               </Link>
@@ -93,21 +94,21 @@ export default async function Home() {
         )}
 
         <div className="flex gap-4 items-center flex-col sm:flex-row text-sm">
-          <div className="bg-green-50 border border-green-200 p-3 rounded-md">
-            <span className="text-green-800 font-medium">
+          <div className="bg-green-100 border border-green-300 p-4 rounded-lg shadow-sm">
+            <span className="text-green-900 font-bold">
               ✅ {user ? "ログイン済み" : "新規登録機能"}
             </span>
           </div>
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded-md">
-            <span className="text-blue-800 font-medium">🔐 Supabase認証</span>
+          <div className="bg-blue-100 border border-blue-300 p-4 rounded-lg shadow-sm">
+            <span className="text-blue-900 font-bold">🔐 Supabase認証</span>
           </div>
-          <div className="bg-purple-50 border border-purple-200 p-3 rounded-md">
-            <span className="text-purple-800 font-medium">🛡️ セキュア</span>
+          <div className="bg-purple-100 border border-purple-300 p-4 rounded-lg shadow-sm">
+            <span className="text-purple-900 font-bold">🛡️ セキュア</span>
           </div>
         </div>
       </main>
 
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center text-sm text-gray-500">
+      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center text-sm text-slate-700 font-medium">
         <span>Powered by Next.js & Supabase</span>
       </footer>
     </div>

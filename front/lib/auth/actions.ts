@@ -212,24 +212,9 @@ export async function signInWithApple() {
 
 // サインアウト用のServer Action
 export async function signOut() {
-  try {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-
-    revalidatePath("/", "layout");
-    redirect("/auth/signin");
-  } catch (error) {
-    // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
-    if (
-      error instanceof Error &&
-      (error as any).digest?.startsWith("NEXT_REDIRECT")
-    ) {
-      throw error;
-    }
-
-    console.error("SignOut error:", error);
-    redirect("/auth/signin");
-  }
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/auth/signin");
 }
 
 // パスワードリセット用のServer Action
@@ -365,4 +350,18 @@ export async function updatePassword(
       error: "パスワード更新中にエラーが発生しました。",
     };
   }
+}
+
+export async function getUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    return null;
+  }
+
+  return user;
 }
