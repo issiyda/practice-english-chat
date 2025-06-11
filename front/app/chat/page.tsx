@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useChat, type Message } from "ai/react";
 import Sidebar from "@/components/Sidebar";
 
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  streamIndex?: number; // AIメッセージの場合のストリーム番号（0, 1, 2）
+  isStreaming?: boolean;
+}
+
 interface MessageCardProps {
-  message: Message;
+  message: ChatMessage;
   onPlayAudio: (text: string) => void;
   onBookmark: (englishText: string, japaneseText?: string) => void;
   isStreaming?: boolean;
@@ -48,6 +55,13 @@ const MessageCard = ({
           isUser ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-900"
         } ${isStreaming ? "animate-pulse" : ""}`}
       >
+        {/* AIメッセージの場合、ストリーム番号を表示 */}
+        {!isUser && message.streamIndex !== undefined && (
+          <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+            #{message.streamIndex + 1}
+          </div>
+        )}
+
         {/* AIメッセージの場合、吹き出し内の右上に音声再生とブックマークアイコンを表示 */}
         {!isUser && !isStreaming && (
           <div className="absolute top-2 right-2 flex space-x-1">
@@ -111,7 +125,7 @@ const MessageCard = ({
           </div>
         )}
 
-        <div className="whitespace-pre-wrap break-words pr-12">
+        <div className="whitespace-pre-wrap break-words pr-12 pl-8">
           {message.content}
           {isStreaming && (
             <span className="inline-block w-2 h-5 bg-gray-400 ml-1 animate-pulse">
@@ -187,43 +201,235 @@ const MessageCard = ({
 
 const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
-    useChat({
-      api: "/api/chat",
-      initialMessages: [
-        {
-          id: "welcome",
-          role: "assistant",
-          content:
-            "こんにちは！英語学習のお手伝いをします。どのようなシチュエーションの英語表現を学びたいですか？\n\n例：「会議で使えるフレーズ」「レストランでの注文」「自己紹介」など、具体的にお聞かせください。",
-        },
-      ],
-      onError: (error) => {
-        console.error("Chat error:", error);
-        console.error("Error details:", {
-          message: error.message,
-          stack: error.stack,
-          name: error.name,
-        });
-      },
-      onFinish: (message) => {
-        console.log("メッセージ完了:", message);
-      },
-      onResponse: async (response) => {
-        console.log("API応答受信:", response.status, response.statusText);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("APIエラー詳細:", errorText);
-        } else {
-          console.log(
-            "応答ヘッダー:",
-            Object.fromEntries(response.headers.entries())
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content:
+        "こんにちは！英語学習のお手伝いをします。どのようなシチュエーションの英語表現を学びたいですか？\n\n例：「会議で使えるフレーズ」「レストランでの注文」「自己紹介」など、具体的にお聞かせください。",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bookmarkMessage, setBookmarkMessage] = useState<string>("");
+
+  // 3つの並行ストリーミングリクエストを処理する関数
+  const handleMultipleStreams = async (userMessage: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    // ユーザーメッセージを追加
+    const userMessageObj: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: userMessage,
+    };
+    setMessages((prev) => [...prev, userMessageObj]);
+
+    // 3つのAI応答メッセージのプレースホルダーを作成
+    const aiMessageIds = Array.from(
+      { length: 3 },
+      (_, i) => `ai-${Date.now()}-${i}`
+    );
+    const initialAiMessages: ChatMessage[] = aiMessageIds.map((id, index) => ({
+      id,
+      role: "assistant" as const,
+      content: "",
+      streamIndex: index,
+      isStreaming: true,
+    }));
+
+    setMessages((prev) => [...prev, ...initialAiMessages]);
+
+    // 各ストリームの状態を管理
+    const streamStates = Array.from({ length: 3 }, () => ({
+      content: "",
+      completed: false,
+    }));
+
+    try {
+      // 3つの並行リクエストを実行（それぞれ異なるプロンプトバリエーション）
+      const streamPromises = Array.from(
+        { length: 3 },
+        async (_, streamIndex) => {
+          console.log(`Stream ${streamIndex + 1} starting...`);
+
+          // 各ストリームで異なるプロンプトを追加して多様性を確保
+          const variations = [
+            "（フォーマル・ビジネス向けの表現を重視してください）",
+            "（カジュアル・日常会話向けの表現を重視してください）",
+            "（実用的で覚えやすい表現を重視してください）",
+          ];
+
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: [
+                ...messages
+                  .filter((m) => m.role === "user")
+                  .map((m) => ({ role: m.role, content: m.content })),
+                {
+                  role: "user",
+                  content: userMessage + " " + variations[streamIndex],
+                },
+              ],
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Stream ${streamIndex + 1} failed: ${response.statusText}`
+            );
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error(
+              `No reader available for stream ${streamIndex + 1}`
+            );
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                console.log(`Stream ${streamIndex + 1} completed`);
+                break;
+              }
+
+              const chunk = decoder.decode(value, { stream: true });
+              console.log(`Stream ${streamIndex + 1} raw chunk:`, chunk);
+
+              buffer += chunk;
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || ""; // 最後の不完全な行を保持
+
+              for (const line of lines) {
+                if (line.trim() === "") continue;
+
+                console.log(`Stream ${streamIndex + 1} processing line:`, line);
+
+                // AI SDK v4の形式: 0:"text"
+                if (line.startsWith("0:")) {
+                  try {
+                    const jsonString = line.slice(2);
+                    const textContent = JSON.parse(jsonString);
+
+                    if (typeof textContent === "string") {
+                      streamStates[streamIndex].content += textContent;
+                      console.log(
+                        `Stream ${streamIndex + 1} added text:`,
+                        textContent
+                      );
+
+                      // UIを更新
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === aiMessageIds[streamIndex]
+                            ? {
+                                ...msg,
+                                content: streamStates[streamIndex].content,
+                              }
+                            : msg
+                        )
+                      );
+                    }
+                  } catch (e) {
+                    console.error(
+                      `Stream ${streamIndex + 1} parse error:`,
+                      e,
+                      "Line:",
+                      line
+                    );
+                  }
+                }
+                // 完了シグナル: d:{...}
+                else if (line.startsWith("d:")) {
+                  console.log(
+                    `Stream ${streamIndex + 1} received completion signal:`,
+                    line
+                  );
+                  break;
+                }
+                // その他のメタデータ: 1:{...}, 8:[...] など
+                else if (/^\d+:/.test(line)) {
+                  console.log(`Stream ${streamIndex + 1} metadata:`, line);
+                }
+                // レガシー形式のサポート
+                else if (line.startsWith("data: ")) {
+                  try {
+                    const jsonStr = line.slice(6);
+                    if (jsonStr === "[DONE]") {
+                      console.log(
+                        `Stream ${streamIndex + 1} received DONE signal`
+                      );
+                      break;
+                    }
+
+                    const parsed = JSON.parse(jsonStr);
+                    console.log(
+                      `Stream ${streamIndex + 1} legacy data:`,
+                      parsed
+                    );
+
+                    if (parsed.choices?.[0]?.delta?.content) {
+                      const textDelta = parsed.choices[0].delta.content;
+                      streamStates[streamIndex].content += textDelta;
+
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === aiMessageIds[streamIndex]
+                            ? {
+                                ...msg,
+                                content: streamStates[streamIndex].content,
+                              }
+                            : msg
+                        )
+                      );
+                    }
+                  } catch (e) {
+                    console.error(
+                      `Stream ${streamIndex + 1} legacy parse error:`,
+                      e
+                    );
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+
+          // ストリーミング完了をマーク
+          console.log(`Stream ${streamIndex + 1} marking as completed`);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMessageIds[streamIndex]
+                ? { ...msg, isStreaming: false }
+                : msg
+            )
           );
         }
-      },
-    });
+      );
 
-  const [bookmarkMessage, setBookmarkMessage] = useState<string>("");
+      // すべてのストリームの完了を待つ
+      await Promise.all(streamPromises);
+      console.log("All streams completed");
+    } catch (err) {
+      console.error("Multiple stream error:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
+
+      // エラー時は未完了のストリーミングメッセージを削除
+      setMessages((prev) => prev.filter((msg) => !msg.isStreaming));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 自動スクロール機能
   const scrollToBottom = () => {
@@ -259,9 +465,14 @@ const ChatPage = () => {
     }, 3000);
   };
 
-  // 最後のメッセージがAIからのものでストリーミング中かチェック
-  const lastMessage = messages[messages.length - 1];
-  const isLastMessageStreaming = isLoading && lastMessage?.role === "assistant";
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoading && input.trim()) {
+      const userMessage = input.trim();
+      setInput("");
+      handleMultipleStreams(userMessage);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -273,47 +484,31 @@ const ChatPage = () => {
         {/* ヘッダー */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <h1 className="text-2xl font-bold text-gray-900">
-            AI英語学習チャット
+            AI英語学習チャット（3ストリーム）
           </h1>
           <p className="text-gray-600 text-sm mt-1">
-            AIと対話しながら実用的な英語表現を学習しましょう
+            AIと対話しながら実用的な英語表現を学習しましょう（3つの異なる応答を同時に生成）
           </p>
         </div>
 
         {/* チャットログエリア */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <div className="max-w-4xl mx-auto">
-            {messages.map((message, index) => (
+            {messages.map((message) => (
               <MessageCard
                 key={message.id}
                 message={message}
                 onPlayAudio={handlePlayAudio}
                 onBookmark={handleBookmark}
-                isStreaming={
-                  isLastMessageStreaming && index === messages.length - 1
-                }
+                isStreaming={message.isStreaming}
               />
             ))}
-
-            {/* ローディング表示（新しいメッセージがまだ作成されていない場合） */}
-            {isLoading && !lastMessage && (
-              <div className="flex justify-start mb-4">
-                <div className="bg-gray-100 text-gray-600 px-4 py-3 rounded-lg max-w-md">
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                    <span>AIが回答を生成中...</span>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* エラー表示 */}
             {error && (
               <div className="flex justify-center mb-4">
                 <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg max-w-md">
-                  <p className="text-sm">
-                    エラーが発生しました: {error.message}
-                  </p>
+                  <p className="text-sm">エラーが発生しました: {error}</p>
                 </div>
               </div>
             )}
@@ -337,20 +532,11 @@ const ChatPage = () => {
         {/* 入力エリア */}
         <div className="bg-white border-t border-gray-200 px-6 py-4">
           <div className="max-w-4xl mx-auto">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!isLoading && input.trim()) {
-                  console.log("フォーム送信:", input.trim());
-                  handleSubmit(e);
-                }
-              }}
-              className="flex space-x-4"
-            >
+            <form onSubmit={handleSubmit} className="flex space-x-4">
               <input
                 type="text"
                 value={input}
-                onChange={handleInputChange}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="（例）会議で使えるフレーズ、レストランでの注文、自己紹介..."
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                 disabled={isLoading}
@@ -362,7 +548,6 @@ const ChatPage = () => {
                     input.trim()
                   ) {
                     e.preventDefault();
-                    console.log("Enter キー送信:", input.trim());
                     handleSubmit(e as any);
                   }
                 }}
@@ -372,7 +557,7 @@ const ChatPage = () => {
                 disabled={isLoading || !input.trim()}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
               >
-                {isLoading ? "送信中..." : "送信"}
+                {isLoading ? "3つの応答を生成中..." : "送信"}
               </button>
             </form>
           </div>

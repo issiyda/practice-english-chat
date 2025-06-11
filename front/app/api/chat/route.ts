@@ -4,12 +4,8 @@ import { streamText } from "ai";
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
-    console.log("受信したメッセージ:", messages);
-
     // 最新のメッセージ内容を取得
     const userMessage = messages[messages.length - 1].content;
-    console.log("ユーザーメッセージ:", userMessage);
-
     // システムプロンプト：英語学習に特化した応答を生成
     const systemPrompt = `あなたは英語学習をサポートするAIアシスタントです。ユーザーから英語表現の要求があった場合、以下のルールに従って回答してください：
 
@@ -39,11 +35,7 @@ export async function POST(req: Request) {
       maxTokens: 1000,
     });
 
-    console.log("AI応答生成完了");
-    console.log("result.text（非同期）:", result.text);
-
     const response = result.toDataStreamResponse();
-    console.log("DataStreamResponse作成完了");
 
     return response;
   } catch (error) {
