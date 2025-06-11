@@ -16,6 +16,12 @@ type SignInState = {
   message?: string;
 } | null;
 
+type ResetPasswordState = {
+  error?: string;
+  success?: boolean;
+  message?: string;
+} | null;
+
 // 新規登録用のServer Action
 export async function signUp(
   prevState: SignUpState,
@@ -217,5 +223,52 @@ export async function signOut() {
 
     console.error("SignOut error:", error);
     redirect("/auth/signin");
+  }
+}
+
+// パスワードリセット用のServer Action
+export async function resetPassword(
+  prevState: ResetPasswordState,
+  formData: FormData
+): Promise<ResetPasswordState> {
+  const email = formData.get("email") as string;
+
+  // バリデーション
+  if (!email) {
+    return {
+      error: "メールアドレスを入力してください。",
+    };
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return {
+      error: "有効なメールアドレスを入力してください。",
+    };
+  }
+
+  try {
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.SITE_URL}/auth/reset-password/confirm`,
+    });
+
+    if (error) {
+      return {
+        error: "パスワードリセットメールの送信に失敗しました。",
+      };
+    }
+
+    return {
+      success: true,
+      message:
+        "パスワードリセットのメールを送信しました。メールを確認してリンクをクリックしてください。",
+    };
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return {
+      error: "パスワードリセット処理中にエラーが発生しました。",
+    };
   }
 }
