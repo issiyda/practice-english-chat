@@ -20,6 +20,7 @@ erDiagram
 
     profiles {
         uuid id PK
+        uuid user_id FK "nullable"
         string name
         timestamptz created_at
         timestamptz updated_at
@@ -58,12 +59,13 @@ erDiagram
 
 Supabase の認証ユーザー (`auth.users`) に紐づく、アプリケーション固有のユーザー情報を格納します。
 
-| カラム名     | データ型       | 制約                                                         | 説明                                                                                    |
-| :----------- | :------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
-| `id`         | `UUID`         | `PRIMARY KEY`, `REFERENCES auth.users(id) ON DELETE CASCADE` | `auth.users` テーブルの ID を参照する。ユーザー削除時にプロフィールも自動で削除される。 |
-| `name`       | `VARCHAR(255)` |                                                              | ユーザーの表示名                                                                        |
-| `created_at` | `TIMESTAMPTZ`  | `NOT NULL`, `DEFAULT now()`                                  | 作成日時                                                                                |
-| `updated_at` | `TIMESTAMPTZ`  | `NOT NULL`, `DEFAULT now()`                                  | 更新日時                                                                                |
+| カラム名     | データ型       | 制約                                          | 説明                                                                                    |
+| :----------- | :------------- | :-------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| `id`         | `UUID`         | `PRIMARY KEY`, `DEFAULT gen_random_uuid()`    | プロフィールを一意に識別する ID                                                         |
+| `user_id`    | `UUID`         | `REFERENCES auth.users(id) ON DELETE CASCADE` | `auth.users` テーブルの ID を参照する。ユーザー削除時にプロフィールも自動で削除される。 |
+| `name`       | `VARCHAR(255)` |                                               | ユーザーの表示名                                                                        |
+| `created_at` | `TIMESTAMPTZ`  | `NOT NULL`, `DEFAULT now()`                   | 作成日時                                                                                |
+| `updated_at` | `TIMESTAMPTZ`  | `NOT NULL`, `DEFAULT now()`                   | 更新日時                                                                                |
 
 ### 3.2. `chat_messages` テーブル
 
