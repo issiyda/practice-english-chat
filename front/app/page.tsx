@@ -48,12 +48,12 @@ export default async function Home() {
             </div>
 
             <div className="space-y-4">
-              <button
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-3 focus:ring-green-400 focus:ring-offset-2 transition duration-200 font-semibold text-lg shadow-md"
-                disabled
+              <Link
+                href="/chat"
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-3 focus:ring-green-400 focus:ring-offset-2 transition duration-200 font-semibold text-lg shadow-md block text-center"
               >
-                チャット開始（準備中）
-              </button>
+                チャット開始
+              </Link>
 
               <form action={signOut} className="w-full">
                 <button
