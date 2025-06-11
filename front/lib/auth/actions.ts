@@ -22,6 +22,12 @@ type ResetPasswordState = {
   message?: string;
 } | null;
 
+type UpdatePasswordState = {
+  error?: string;
+  success?: boolean;
+  message?: string;
+} | null;
+
 // 新規登録用のServer Action
 export async function signUp(
   prevState: SignUpState,
@@ -269,6 +275,94 @@ export async function resetPassword(
     console.error("Reset password error:", error);
     return {
       error: "パスワードリセット処理中にエラーが発生しました。",
+    };
+  }
+}
+
+// パスワード更新用のServer Action
+export async function updatePassword(
+  prevState: UpdatePasswordState,
+  formData: FormData
+): Promise<UpdatePasswordState> {
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+  const code = formData.get("code") as string;
+
+  // バリデーション
+  if (!password || !confirmPassword) {
+    return {
+      error: "すべてのフィールドを入力してください。",
+    };
+  }
+
+  if (!code) {
+    return {
+      error:
+        "パスワードリセットコードが無効です。再度リセットを行ってください。",
+    };
+  }
+
+  if (password !== confirmPassword) {
+    return {
+      error: "パスワードが一致しません。",
+    };
+  }
+
+  if (password.length < 6) {
+    return {
+      error: "パスワードは6文字以上で入力してください。",
+    };
+  }
+
+  try {
+    const supabase = await createClient();
+
+    // codeを使ってセッションを確立
+    const { data, error: sessionError } =
+      await supabase.auth.exchangeCodeForSession(code);
+
+    if (sessionError) {
+      console.error("Code exchange error:", sessionError);
+      return {
+        error:
+          "パスワードリセットコードが無効です。再度リセットを行ってください。",
+      };
+    }
+
+    if (!data.session || !data.user) {
+      return {
+        error: "セッションの確立に失敗しました。再度リセットを行ってください。",
+      };
+    }
+
+    // パスワード更新
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    });
+
+    if (error) {
+      console.error("Password update error:", error);
+      return {
+        error: "パスワードの更新に失敗しました。",
+      };
+    }
+
+    // 成功時はサインアウトしてログインページにリダイレクト
+    await supabase.auth.signOut();
+    revalidatePath("/", "layout");
+    redirect("/auth/signin?message=password_updated");
+  } catch (error) {
+    // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
+    if (
+      error instanceof Error &&
+      (error as any).digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      throw error;
+    }
+
+    console.error("Update password error:", error);
+    return {
+      error: "パスワード更新中にエラーが発生しました。",
     };
   }
 }

@@ -22,6 +22,7 @@ export default function SignInForm() {
 
   // URLパラメータからエラーメッセージを取得
   const error = searchParams.get("error");
+  const message = searchParams.get("message");
 
   // ログイン成功時にリダイレクト
   useEffect(() => {
@@ -47,9 +48,12 @@ export default function SignInForm() {
         </div>
       )}
 
-      {state?.success && (
+      {(state?.success || message) && (
         <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-          {state.message}
+          {state?.message ||
+            (message === "password_updated" &&
+              "パスワードが正常に更新されました。新しいパスワードでログインしてください。") ||
+            message}
         </div>
       )}
 
