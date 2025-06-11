@@ -1,28 +1,26 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { createClient } from "@/utils/supabase/server";
 
-// サーバーサイドでのSupabaseクライアント作成
-function createServerSupabaseClient() {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_ANON_KEY!;
+type SignUpState = {
+  error?: string;
+  success?: boolean;
+  message?: string;
+} | null;
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
+type SignInState = {
+  error?: string;
+  success?: boolean;
+  message?: string;
+} | null;
 
 // 新規登録用のServer Action
-export async function signUp(prevState: any, formData: FormData) {
+export async function signUp(
+  prevState: SignUpState,
+  formData: FormData
+): Promise<SignUpState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
@@ -54,11 +52,14 @@ export async function signUp(prevState: any, formData: FormData) {
   }
 
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${process.env.SITE_URL}/auth/callback`,
+      },
     });
 
     if (error) {
@@ -81,8 +82,11 @@ export async function signUp(prevState: any, formData: FormData) {
   }
 }
 
-// サインイン用のServer Action（将来の実装用）
-export async function signIn(prevState: any, formData: FormData) {
+// サインイン用のServer Action
+export async function signIn(
+  prevState: SignInState,
+  formData: FormData
+): Promise<SignInState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -93,9 +97,9 @@ export async function signIn(prevState: any, formData: FormData) {
   }
 
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -107,23 +111,18 @@ export async function signIn(prevState: any, formData: FormData) {
       };
     }
 
-    // セッションをクッキーに保存
-    const cookieStore = await cookies();
-
-    if (data.session) {
-      cookieStore.set("supabase-auth-token", data.session.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7日
-      });
+    // 成功時はrevalidateとredirect
+    revalidatePath("/", "layout");
+    redirect("/");
+  } catch (error) {
+    // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
+    if (
+      error instanceof Error &&
+      (error as any).digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      throw error;
     }
 
-    return {
-      success: true,
-      message: "ログインしました。",
-    };
-  } catch (error) {
     console.error("SignIn error:", error);
     return {
       error: "ログイン中にエラーが発生しました。",
@@ -131,20 +130,92 @@ export async function signIn(prevState: any, formData: FormData) {
   }
 }
 
+// Googleログイン用のServer Action
+export async function signInWithGoogle() {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${process.env.SITE_URL}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      console.error("Google sign-in error:", error);
+      redirect("/auth/signin?error=google_signin_failed");
+    }
+
+    if (data.url) {
+      redirect(data.url);
+    }
+  } catch (error) {
+    // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
+    if (
+      error instanceof Error &&
+      (error as any).digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      throw error;
+    }
+
+    console.error("Google sign-in error:", error);
+    redirect("/auth/signin?error=google_signin_failed");
+  }
+}
+
+// Appleログイン用のServer Action
+export async function signInWithApple() {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: {
+        redirectTo: `${process.env.SITE_URL}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      console.error("Apple sign-in error:", error);
+      redirect("/auth/signin?error=apple_signin_failed");
+    }
+
+    if (data.url) {
+      redirect(data.url);
+    }
+  } catch (error) {
+    // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
+    if (
+      error instanceof Error &&
+      (error as any).digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      throw error;
+    }
+
+    console.error("Apple sign-in error:", error);
+    redirect("/auth/signin?error=apple_signin_failed");
+  }
+}
+
 // サインアウト用のServer Action
 export async function signOut() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete("supabase-auth-token");
+    const supabase = await createClient();
+    await supabase.auth.signOut();
 
-    return {
-      success: true,
-      message: "ログアウトしました。",
-    };
+    revalidatePath("/", "layout");
+    redirect("/auth/signin");
   } catch (error) {
+    // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
+    if (
+      error instanceof Error &&
+      (error as any).digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      throw error;
+    }
+
     console.error("SignOut error:", error);
-    return {
-      error: "ログアウト中にエラーが発生しました。",
-    };
+    redirect("/auth/signin");
   }
 }
