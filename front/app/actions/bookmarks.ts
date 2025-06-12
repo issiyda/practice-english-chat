@@ -144,6 +144,83 @@ export async function getBookmarks(userId: string) {
   }
 }
 
+export async function getBookmarksWithPagination(
+  userId: string,
+  page: number = 1,
+  limit: number = 1
+) {
+  try {
+    const supabase = await createClient();
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // 総件数を取得
+    const { count, error: countError } = await supabase
+      .from("bookmarks")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
+
+    if (countError) {
+      throw countError;
+    }
+
+    // ページネーション付きでデータを取得
+    const { data, error } = await supabase
+      .from("bookmarks")
+      .select(
+        `
+        id,
+        created_at,
+        chat_message_id,
+        chat_messages (
+          id,
+          message,
+          role,
+          created_at,
+          chat_group_id,
+          chat_groups (
+            title
+          )
+        )
+      `
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    console.log("取得データ:", JSON.stringify(data, null, 2));
+
+    if (error) {
+      throw error;
+    }
+
+    const totalPages = Math.ceil((count || 0) / limit);
+
+    return {
+      success: true,
+      data,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount: count || 0,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  } catch (error) {
+    console.error("ブックマーク取得エラー:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "ブックマークの取得に失敗しました",
+    };
+  }
+}
+
 export async function checkBookmarkStatus(
   chatMessageId: number,
   userId: string

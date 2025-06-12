@@ -1,41 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
+import { useAuth } from "@/components/AuthProvider";
+import {
+  getBookmarksWithPagination,
+  removeBookmark,
+} from "@/app/actions/bookmarks";
 
-// モックデータ
-const mockBookmarks = [
-  {
-    id: 1,
-    englishText: "I'd like to schedule a follow-up meeting.",
-    japaneseText: "フォローアップミーティングを予定したいと思います。",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: 2,
-    englishText: "Could you please send me the agenda in advance?",
-    japaneseText: "事前にアジェンダを送っていただけますか？",
-    createdAt: "2024-01-14",
-  },
-  {
-    id: 3,
-    englishText: "Let's table this discussion for now.",
-    japaneseText: "この議論は今のところ保留にしましょう。",
-    createdAt: "2024-01-13",
-  },
-  {
-    id: 4,
-    englishText: "I appreciate your feedback on this matter.",
-    japaneseText: "この件についてのご意見をいただき、ありがとうございます。",
-    createdAt: "2024-01-12",
-  },
-  {
-    id: 5,
-    englishText: "Could you clarify what you mean by that?",
-    japaneseText: "それはどういう意味か説明していただけますか？",
-    createdAt: "2024-01-11",
-  },
-];
+// Supabaseから取得するブックマークデータの型定義（一時的にanyを使用してデバッグ）
+interface BookmarkData {
+  id: number;
+  created_at: string;
+  chat_message_id: number;
+  chat_messages: any;
+}
+
+// 表示用のブックマークデータ型
+interface DisplayBookmark {
+  id: number;
+  chatMessageId: number;
+  englishText: string;
+  chatGroupTitle: string;
+  createdAt: string;
+}
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -44,7 +32,7 @@ interface DeleteModalProps {
   onCancel: () => void;
 }
 
-// 削除確認モーダル (C-02)
+// 削除確認モーダル
 const DeleteModal = ({
   isOpen,
   bookmarkText,
@@ -83,14 +71,10 @@ const DeleteModal = ({
 };
 
 interface BookmarkCardProps {
-  bookmark: {
-    id: number;
-    englishText: string;
-    japaneseText: string;
-    createdAt: string;
-  };
-  onDelete: (id: number) => void;
+  bookmark: DisplayBookmark;
+  onDelete: (id: number, chatMessageId: number) => void;
   onPlayAudio: (text: string) => void;
+  isDeleting?: boolean;
 }
 
 // ブックマークカードコンポーネント
@@ -98,6 +82,7 @@ const BookmarkCard = ({
   bookmark,
   onDelete,
   onPlayAudio,
+  isDeleting = false,
 }: BookmarkCardProps) => {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -106,7 +91,9 @@ const BookmarkCard = ({
           <p className="text-lg font-medium text-gray-900 mb-2">
             {bookmark.englishText}
           </p>
-          <p className="text-gray-600 mb-3">{bookmark.japaneseText}</p>
+          <p className="text-gray-600 mb-3">
+            チャットグループ: {bookmark.chatGroupTitle}
+          </p>
           <p className="text-sm text-gray-400">
             保存日: {new Date(bookmark.createdAt).toLocaleDateString("ja-JP")}
           </p>
@@ -150,45 +137,52 @@ const BookmarkCard = ({
 
           {/* 削除アイコン */}
           <button
-            onClick={() => onDelete(bookmark.id)}
-            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+            onClick={() => onDelete(bookmark.id, bookmark.chatMessageId)}
+            disabled={isDeleting}
+            className={`p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors ${
+              isDeleting ? "opacity-50 cursor-not-allowed" : ""
+            }`}
             title="削除"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-5 h-5"
-            >
-              <path
-                d="M3 6H5H21"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M10 11V17"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M14 11V17"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            {isDeleting ? (
+              <div className="w-5 h-5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin"></div>
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+              >
+                <path
+                  d="M3 6H5H21"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M10 11V17"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M14 11V17"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </button>
         </div>
       </div>
@@ -196,22 +190,170 @@ const BookmarkCard = ({
   );
 };
 
+// ページネーションコンポーネント
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+const Pagination = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  hasNextPage,
+  hasPrevPage,
+}: PaginationProps) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center space-x-2 mt-8">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={!hasPrevPage}
+        className={`px-3 py-2 rounded-md text-sm font-medium ${
+          hasPrevPage
+            ? "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+            : "text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed"
+        }`}
+      >
+        前へ
+      </button>
+
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`px-3 py-2 rounded-md text-sm font-medium ${
+            page === currentPage
+              ? "text-white bg-blue-600 border border-blue-600"
+              : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={!hasNextPage}
+        className={`px-3 py-2 rounded-md text-sm font-medium ${
+          hasNextPage
+            ? "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+            : "text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed"
+        }`}
+      >
+        次へ
+      </button>
+    </div>
+  );
+};
+
 const BookmarksPage = () => {
-  const [bookmarks, setBookmarks] = useState(mockBookmarks);
+  const { user } = useAuth();
+  const [bookmarks, setBookmarks] = useState<DisplayBookmark[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 0,
+    totalCount: 0,
+    limit: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     bookmarkId: number | null;
+    chatMessageId: number | null;
     bookmarkText: string;
   }>({
     isOpen: false,
     bookmarkId: null,
+    chatMessageId: null,
     bookmarkText: "",
   });
 
+  // ブックマークデータを変換する関数
+  const convertBookmarkData = (
+    bookmarkData: BookmarkData[]
+  ): DisplayBookmark[] => {
+    return bookmarkData
+      .filter(
+        (item) =>
+          item.chat_messages !== null && item.chat_messages !== undefined
+      )
+      .map((item) => {
+        const chatMessage = item.chat_messages;
+        let chatGroupTitle = "不明なグループ";
+        let messageText = "";
+
+        // データ構造を確認して適切に処理
+        if (Array.isArray(chatMessage)) {
+          // 配列の場合
+          const message = chatMessage[0];
+          messageText = message?.message || "";
+          if (message?.chat_groups) {
+            chatGroupTitle = Array.isArray(message.chat_groups)
+              ? message.chat_groups[0]?.title || "不明なグループ"
+              : message.chat_groups?.title || "不明なグループ";
+          }
+        } else if (chatMessage && typeof chatMessage === "object") {
+          // オブジェクトの場合
+          messageText = chatMessage.message || "";
+          if (chatMessage.chat_groups) {
+            chatGroupTitle = Array.isArray(chatMessage.chat_groups)
+              ? chatMessage.chat_groups[0]?.title || "不明なグループ"
+              : chatMessage.chat_groups?.title || "不明なグループ";
+          }
+        }
+
+        return {
+          id: item.id,
+          chatMessageId: item.chat_message_id,
+          englishText: messageText,
+          chatGroupTitle: chatGroupTitle,
+          createdAt: item.created_at,
+        };
+      });
+  };
+
+  // ブックマークを読み込む関数
+  const loadBookmarks = async (page: number = 1) => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await getBookmarksWithPagination(user.id, page, 1);
+
+      if (result.success && result.data && result.pagination) {
+        const displayBookmarks = convertBookmarkData(result.data);
+        setBookmarks(displayBookmarks);
+        setPagination(result.pagination);
+        setCurrentPage(page);
+      } else {
+        setError(result.error || "ブックマークの取得に失敗しました");
+      }
+    } catch (err) {
+      console.error("ブックマーク取得エラー:", err);
+      setError("ブックマークの取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 初期読み込み
+  useEffect(() => {
+    loadBookmarks(1);
+  }, [user?.id]);
+
   const handlePlayAudio = (text: string) => {
-    // 音声再生の実装（後でAPIと繋ぎ込み予定）
-    console.log("音声再生:", text);
-    // モック実装：ブラウザの音声合成機能を使用
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
@@ -219,27 +361,43 @@ const BookmarksPage = () => {
     }
   };
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = (id: number, chatMessageId: number) => {
     const bookmark = bookmarks.find((b) => b.id === id);
     if (bookmark) {
       setDeleteModal({
         isOpen: true,
         bookmarkId: id,
+        chatMessageId: chatMessageId,
         bookmarkText: bookmark.englishText,
       });
     }
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteModal.bookmarkId) {
-      setBookmarks((prev) =>
-        prev.filter((b) => b.id !== deleteModal.bookmarkId)
-      );
-      setDeleteModal({
-        isOpen: false,
-        bookmarkId: null,
-        bookmarkText: "",
-      });
+  const handleDeleteConfirm = async () => {
+    if (deleteModal.chatMessageId && deleteModal.bookmarkId) {
+      setDeletingId(deleteModal.bookmarkId);
+
+      try {
+        const result = await removeBookmark(deleteModal.chatMessageId);
+
+        if (result.success) {
+          // 削除成功時は現在のページを再読み込み
+          await loadBookmarks(currentPage);
+        } else {
+          setError(result.error || "ブックマークの削除に失敗しました");
+        }
+      } catch (err) {
+        console.error("ブックマーク削除エラー:", err);
+        setError("ブックマークの削除に失敗しました");
+      } finally {
+        setDeletingId(null);
+        setDeleteModal({
+          isOpen: false,
+          bookmarkId: null,
+          chatMessageId: null,
+          bookmarkText: "",
+        });
+      }
     }
   };
 
@@ -247,19 +405,64 @@ const BookmarksPage = () => {
     setDeleteModal({
       isOpen: false,
       bookmarkId: null,
+      chatMessageId: null,
       bookmarkText: "",
     });
   };
 
+  const handlePageChange = (page: number) => {
+    loadBookmarks(page);
+  };
+
+  if (!user) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-500">ログインが必要です</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 ml-64 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500">{error}</p>
+            <button
+              onClick={() => loadBookmarks(currentPage)}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* サイドバー (C-01) */}
       <Sidebar />
 
-      {/* メインコンテンツ */}
       <div className="flex-1 ml-64 overflow-auto">
         <div className="max-w-4xl mx-auto p-8">
-          {/* ヘッダー */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 text-center">
               ブックマーク一覧
@@ -269,7 +472,6 @@ const BookmarksPage = () => {
             </p>
           </div>
 
-          {/* コンテンツエリア */}
           <div className="space-y-4">
             {bookmarks.length === 0 ? (
               <div className="text-center py-12">
@@ -306,7 +508,13 @@ const BookmarksPage = () => {
               <>
                 <div className="flex justify-between items-center mb-6">
                   <p className="text-gray-600">
-                    {bookmarks.length}件のブックマーク
+                    {pagination.totalCount}件のブックマーク
+                    {pagination.totalPages > 1 && (
+                      <span className="ml-2">
+                        (ページ {pagination.currentPage} /{" "}
+                        {pagination.totalPages})
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -316,15 +524,23 @@ const BookmarksPage = () => {
                     bookmark={bookmark}
                     onDelete={handleDeleteClick}
                     onPlayAudio={handlePlayAudio}
+                    isDeleting={deletingId === bookmark.id}
                   />
                 ))}
+
+                <Pagination
+                  currentPage={pagination.currentPage}
+                  totalPages={pagination.totalPages}
+                  onPageChange={handlePageChange}
+                  hasNextPage={pagination.hasNextPage}
+                  hasPrevPage={pagination.hasPrevPage}
+                />
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* 削除確認モーダル (C-02) */}
       <DeleteModal
         isOpen={deleteModal.isOpen}
         bookmarkText={deleteModal.bookmarkText}
