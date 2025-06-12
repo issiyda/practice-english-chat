@@ -17,7 +17,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// TypeScriptの型定義（後でデータベーススキーマに基づいて更新）
+// TypeScriptの型定義（データベーススキーマに基づいて更新）
 export type Database = {
   public: {
     Tables: {
@@ -44,27 +44,76 @@ export type Database = {
           updated_at?: string;
         };
       };
-      bookmarks: {
+      chat_groups: {
         Row: {
-          id: string;
+          id: number;
           user_id: string;
-          english_text: string;
-          japanese_text: string;
+          title: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
-          id?: string;
+          id?: number;
           user_id: string;
-          english_text: string;
-          japanese_text: string;
+          title?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
-          id?: string;
+          id?: number;
           user_id?: string;
-          english_text?: string;
-          japanese_text?: string;
+          title?: string | null;
           created_at?: string;
+          updated_at?: string;
+        };
+      };
+      chat_messages: {
+        Row: {
+          id: number;
+          chat_group_id: number;
+          role: string;
+          message: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          chat_group_id: number;
+          role: string;
+          message: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          chat_group_id?: number;
+          role?: string;
+          message?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      bookmarks: {
+        Row: {
+          id: number;
+          user_id: string;
+          chat_message_id: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          chat_message_id: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          chat_message_id?: number;
+          created_at?: string;
+          updated_at?: string;
         };
       };
     };
