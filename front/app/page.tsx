@@ -8,6 +8,21 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // プロフィール情報を取得
+  let profile = null;
+
+  console.log("user", user);
+  if (user) {
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+    profile = profileData;
+    console.log("profile", profile);
+    console.log("profileError", profileError);
+  }
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-gradient-to-br from-slate-50 to-blue-50">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
@@ -26,25 +41,60 @@ export default async function Home() {
             <div className="mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
                 <span className="text-white text-2xl font-bold">
-                  {user.email?.charAt(0).toUpperCase()}
+                  {profile?.name?.charAt(0).toUpperCase() ||
+                    user.email?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <h2 className="text-3xl font-bold text-slate-800 mb-4">
                 ようこそ！
               </h2>
-              <p className="text-slate-700 mb-3 text-lg">
-                <strong className="text-slate-800">メール:</strong> {user.email}
-              </p>
-              {user.user_metadata?.full_name && (
-                <p className="text-slate-700 mb-3 text-lg">
-                  <strong className="text-slate-800">名前:</strong>{" "}
-                  {user.user_metadata.full_name}
+
+              {/* プロフィール情報の表示 */}
+              <div className="space-y-3 mb-4">
+                <p className="text-slate-700 text-lg">
+                  <strong className="text-slate-800">メール:</strong>{" "}
+                  {user.email}
                 </p>
+
+                {profile?.name && (
+                  <p className="text-slate-700 text-lg">
+                    <strong className="text-slate-800">プロフィール名:</strong>{" "}
+                    {profile.name}
+                  </p>
+                )}
+
+                {user.user_metadata?.full_name && (
+                  <p className="text-slate-700 text-lg">
+                    <strong className="text-slate-800">ユーザー名:</strong>{" "}
+                    {user.user_metadata.full_name}
+                  </p>
+                )}
+
+                <p className="text-slate-600 font-medium">
+                  <strong className="text-slate-700">ログイン日時:</strong>
+                  <br />
+                  {new Date(user.last_sign_in_at || "").toLocaleString("ja-JP")}
+                </p>
+
+                {profile?.created_at && (
+                  <p className="text-slate-600 font-medium">
+                    <strong className="text-slate-700">
+                      プロフィール作成:
+                    </strong>
+                    <br />
+                    {new Date(profile.created_at).toLocaleString("ja-JP")}
+                  </p>
+                )}
+              </div>
+
+              {/* プロフィール情報がない場合の案内 */}
+              {!profile && (
+                <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+                  <p className="text-yellow-800 text-sm">
+                    プロフィール情報がありません。チャットを開始すると自動的に作成されます。
+                  </p>
+                </div>
               )}
-              <p className="text-slate-600 font-medium">
-                ログイン日時:{" "}
-                {new Date(user.last_sign_in_at || "").toLocaleString("ja-JP")}
-              </p>
             </div>
 
             <div className="space-y-4">
