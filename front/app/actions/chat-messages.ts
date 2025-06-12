@@ -38,7 +38,7 @@ export async function getChatMessages(chatGroupId: number, userId: string) {
 
 export async function saveChatMessage(
   chatGroupId: number,
-  role: "user" | "assistant",
+  role: "user" | "ai",
   content: string,
   userId: string
 ) {

@@ -9,6 +9,11 @@ import {
   saveChatMessage,
   getChatGroup,
 } from "@/app/actions/chat-messages";
+import {
+  addBookmark,
+  removeBookmark,
+  checkBookmarkStatus,
+} from "@/app/actions/bookmarks";
 import type { Database } from "@/lib/supabase";
 
 type ChatMessage = Database["public"]["Tables"]["chat_messages"]["Row"];
@@ -17,6 +22,7 @@ type ChatGroup = Database["public"]["Tables"]["chat_groups"]["Row"];
 interface MessageWithStreamIndex extends ChatMessage {
   streamIndex?: number;
   isStreaming?: boolean;
+  isBookmarked?: boolean;
 }
 
 export default function ChatGroupPage() {
@@ -34,10 +40,62 @@ export default function ChatGroupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [bookmarkLoading, setBookmarkLoading] = useState<number | null>(null);
 
   // メッセージの最下部にスクロールする関数
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // ブックマーク状態をチェックする関数
+  const checkBookmarks = async (messages: MessageWithStreamIndex[]) => {
+    if (!user?.id) return messages;
+
+    const updatedMessages = await Promise.all(
+      messages.map(async (message) => {
+        if (message.role === "ai" && message.id !== -1) {
+          const result = await checkBookmarkStatus(message.id, user.id);
+          return { ...message, isBookmarked: result.isBookmarked };
+        }
+        return message;
+      })
+    );
+
+    return updatedMessages;
+  };
+
+  // ブックマークの切り替え処理
+  const toggleBookmark = async (messageId: number) => {
+    if (!user?.id || bookmarkLoading === messageId) return;
+
+    setBookmarkLoading(messageId);
+
+    try {
+      const message = messages.find((msg) => msg.id === messageId);
+      if (!message) return;
+
+      const result = message.isBookmarked
+        ? await removeBookmark(messageId)
+        : await addBookmark(messageId);
+
+      if (result.success) {
+        // メッセージのブックマーク状態を更新
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, isBookmarked: !msg.isBookmarked }
+              : msg
+          )
+        );
+      } else {
+        setError(result.error || "ブックマーク操作に失敗しました");
+      }
+    } catch (err) {
+      console.error("ブックマーク操作エラー:", err);
+      setError("ブックマーク操作に失敗しました");
+    } finally {
+      setBookmarkLoading(null);
+    }
   };
 
   useEffect(() => {
@@ -61,7 +119,9 @@ export default function ChatGroupPage() {
         }
 
         setChatGroup(groupData);
-        setMessages(
+
+        // メッセージにブックマーク状態を追加
+        const messagesWithBookmarks = await checkBookmarks(
           messagesData.map((msg) => ({
             ...msg,
             streamIndex: undefined,
@@ -69,11 +129,13 @@ export default function ChatGroupPage() {
           }))
         );
 
+        setMessages(messagesWithBookmarks);
+
         if (messagesData.length === 0) {
           const welcomeMessage: MessageWithStreamIndex = {
             id: -1,
             chat_group_id: chatGroupId,
-            role: "assistant",
+            role: "ai",
             message: `こんにちは！「${groupData.title}」のチャットへようこそ。`,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -120,7 +182,7 @@ export default function ChatGroupPage() {
       const tempAiMessage: MessageWithStreamIndex = {
         id: Date.now() + 1,
         chat_group_id: chatGroupId,
-        role: "assistant",
+        role: "ai",
         message: "",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -134,7 +196,7 @@ export default function ChatGroupPage() {
         ...messages
           .filter((msg) => msg.id !== -1) // ウェルカムメッセージを除外
           .map((msg) => ({
-            role: msg.role === "assistant" ? "assistant" : "user",
+            role: msg.role === "ai" ? "ai" : "user",
             content: msg.message,
           })),
         { role: "user", content: userMessage },
@@ -205,13 +267,14 @@ export default function ChatGroupPage() {
       setTimeout(async () => {
         try {
           const updatedMessages = await getChatMessages(chatGroupId, user.id);
-          setMessages(
+          const messagesWithBookmarks = await checkBookmarks(
             updatedMessages.map((msg) => ({
               ...msg,
               streamIndex: undefined,
               isStreaming: false,
             }))
           );
+          setMessages(messagesWithBookmarks);
         } catch (err) {
           console.error("メッセージ再読み込みエラー:", err);
         }
@@ -303,18 +366,70 @@ export default function ChatGroupPage() {
                 } mb-4`}
               >
                 <div
-                  className={`max-w-2xl px-4 py-3 rounded-lg ${
-                    message.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-900"
-                  } ${message.isStreaming ? "animate-pulse" : ""}`}
+                  className={`flex flex-col ${
+                    message.role === "user" ? "items-end" : "items-start"
+                  }`}
                 >
-                  {message.message}
-                  {message.isStreaming && (
-                    <span className="inline-block w-2 h-5 bg-gray-500 ml-1 animate-pulse">
-                      |
-                    </span>
-                  )}
+                  <div
+                    className={`max-w-2xl px-4 py-3 rounded-lg ${
+                      message.role === "user"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-900"
+                    } ${message.isStreaming ? "animate-pulse" : ""}`}
+                  >
+                    {message.message}
+                    {message.isStreaming && (
+                      <span className="inline-block w-2 h-5 bg-gray-500 ml-1 animate-pulse">
+                        |
+                      </span>
+                    )}
+                  </div>
+
+                  {/* AIメッセージの場合のみブックマークアイコンを表示 */}
+                  {message.role === "ai" &&
+                    message.id !== -1 &&
+                    !message.isStreaming && (
+                      <div className="mt-2 flex items-center">
+                        <button
+                          onClick={() => toggleBookmark(message.id)}
+                          disabled={bookmarkLoading === message.id}
+                          className={`p-2 rounded-full transition-colors ${
+                            message.isBookmarked
+                              ? "text-yellow-500 hover:text-yellow-600 bg-yellow-50 hover:bg-yellow-100"
+                              : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                          } ${
+                            bookmarkLoading === message.id
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                          title={
+                            message.isBookmarked
+                              ? "ブックマークを削除"
+                              : "ブックマークに追加"
+                          }
+                        >
+                          {bookmarkLoading === message.id ? (
+                            <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                          ) : (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill={
+                                message.isBookmarked ? "currentColor" : "none"
+                              }
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className="w-5 h-5"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 21L12 16L5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21Z"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    )}
                 </div>
               </div>
             ))}
