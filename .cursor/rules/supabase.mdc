@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+supabaseのクライアントを作成するときは
+front/lib/supabase.ts
+こちらのSupabase用のclientを必ず使って下さい。

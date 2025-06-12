@@ -14,13 +14,20 @@ const Sidebar = () => {
   const pathname = usePathname();
   const { user, handleSignOut } = useAuth();
   const [chatGroups, setChatGroups] = useState<ChatGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const isActive = (path: string) => {
     return pathname === path;
   };
+
+  // 現在のチャットグループIDを取得
+  const getCurrentChatGroupId = () => {
+    const match = pathname.match(/^\/chat\/(\d+)$/);
+    return match ? parseInt(match[1]) : null;
+  };
+
+  const currentChatGroupId = getCurrentChatGroupId();
 
   // チャットグループデータの読み込み
   const loadChatGroups = async () => {
@@ -30,11 +37,6 @@ const Sidebar = () => {
       setIsLoading(true);
       const groups = await getChatGroups(user.id);
       setChatGroups(groups);
-
-      // 選択されたグループがない場合、最初のグループを選択
-      if (groups.length > 0 && !selectedGroupId) {
-        setSelectedGroupId(groups[0].id);
-      }
     } catch (error) {
       console.error("Failed to load chat groups:", error);
     } finally {
@@ -46,10 +48,6 @@ const Sidebar = () => {
     loadChatGroups();
   }, [user?.id]);
 
-  const handleGroupSelect = (groupId: number) => {
-    setSelectedGroupId(groupId);
-  };
-
   const handleDeleteGroup = async (groupId: number, e: React.MouseEvent) => {
     e.stopPropagation();
 
@@ -59,11 +57,6 @@ const Sidebar = () => {
       try {
         await deleteChatGroup(groupId, user.id);
         await loadChatGroups();
-
-        // 削除されたグループが選択されていた場合、選択をクリア
-        if (selectedGroupId === groupId) {
-          setSelectedGroupId(null);
-        }
       } catch (error) {
         console.error("Failed to delete chat group:", error);
         alert("チャットグループの削除に失敗しました");
@@ -134,11 +127,11 @@ const Sidebar = () => {
             ) : (
               <div className="space-y-1">
                 {chatGroups.map((group) => (
-                  <div
+                  <Link
                     key={group.id}
-                    onClick={() => handleGroupSelect(group.id)}
+                    href={`/chat/${group.id}`}
                     className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedGroupId === group.id
+                      currentChatGroupId === group.id
                         ? "bg-blue-100 text-blue-700"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
@@ -150,7 +143,11 @@ const Sidebar = () => {
                       </span>
                     </div>
                     <button
-                      onClick={(e) => handleDeleteGroup(group.id, e)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteGroup(group.id, e);
+                      }}
                       className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all flex-shrink-0"
                       title="グループを削除"
                     >
@@ -168,7 +165,7 @@ const Sidebar = () => {
                         />
                       </svg>
                     </button>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
