@@ -129,9 +129,14 @@ export default function ChatGroupPage() {
 
       setMessages((prev) => [...prev, tempAiMessage]);
 
-      // APIに送信
+      // APIに送信用にメッセージを正しい形式に変換
       const chatMessages = [
-        ...messages.filter((msg) => msg.id !== -1), // ウェルカムメッセージを除外
+        ...messages
+          .filter((msg) => msg.id !== -1) // ウェルカムメッセージを除外
+          .map((msg) => ({
+            role: msg.role === "assistant" ? "assistant" : "user",
+            content: msg.message,
+          })),
         { role: "user", content: userMessage },
       ];
 
