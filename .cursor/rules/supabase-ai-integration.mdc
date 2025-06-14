@@ -46,6 +46,39 @@ alwaysApply: false
 - エラーハンドリングでフォールバック応答を提供
 - レスポンス品質の監視とログ記録
 
+#### エラーハンドリング例
+```typescript
+// AI API エラーハンドリングの具体例
+const handleAIResponse = async (message: string) => {
+  try {
+    const response = await aiProvider.chat(message);
+    return response;
+  } catch (error) {
+    console.error('AI API Error:', error);
+    
+    // フォールバック応答の例
+    return "申し訳ございません。現在サービスが一時的に利用できません。しばらく時間をおいて再度お試しください。";
+  }
+};
+
+// 複数のAIプロバイダーを使用したフォールバック例
+const getAIResponseWithFallback = async (message: string) => {
+  const providers = ['openai', 'anthropic', 'google'];
+  
+  for (const provider of providers) {
+    try {
+      return await getAIResponse(provider, message);
+    } catch (error) {
+      console.warn(`${provider} failed, trying next provider:`, error);
+      continue;
+    }
+  }
+  
+  // すべてのプロバイダーが失敗した場合
+  return "申し訳ございません。現在AIサービスが利用できません。";
+};
+```
+
 ## データフロー例
 
 ```typescript

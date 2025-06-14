@@ -49,12 +49,27 @@ chat_messages (id, chat_group_id, role, message, created_at, updated_at)
 bookmarks (id, user_id, chat_message_id, created_at, updated_at)
 ```
 
+### データベース設定
+
+**RLS (Row Level Security) ポリシー:**
+- 各テーブルでユーザー固有のデータへのアクセス制御
+- `user_id` を基準とした行レベルセキュリティ
+
+**必要な権限設定:**
+- `anon` ロール: 認証前のアクセス
+- `authenticated` ロール: 認証後のCRUD操作
+
+**初期設定手順:**
+1. Supabase プロジェクトで上記テーブルを作成
+2. RLS ポリシーを有効化
+3. 適切な権限をロールに設定
+
 ## 🛠️ セットアップ
 
 ### 必要な環境
 
-- Node.js 18+
-- Yarn
+- Node.js 18+ (推奨: 20+)
+- Yarn 1.22+ または npm 8+
 
 ### 1. リポジトリのクローン
 
@@ -80,6 +95,7 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # AI API Keys
+# ⚠️ 実際の本番環境では .env.local に設定し、決してコミットしないでください
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_API_KEY=your_google_api_key
