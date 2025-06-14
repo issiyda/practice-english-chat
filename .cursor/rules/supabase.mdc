@@ -3,7 +3,31 @@ description:
 globs: 
 alwaysApply: true
 ---
+# Supabaseクライアント使用ルール
 
-supabaseのクライアントを作成するときは
-front/lib/supabase.ts
-こちらのSupabase用のclientを必ず使って下さい。
+## 重要な原則
+**Supabaseクライアントを作成するときは必ず[front/lib/supabase.ts](mdc:front/lib/supabase.ts)のクライアントを使用してください。**
+
+新しいクライアントインスタンスを作成せず、既存の設定済みクライアントを使用することで：
+- 認証設定の一貫性を保つ
+- 環境変数の適切な管理
+- TypeScript型定義の活用
+- セッション管理の自動化
+
+## 使用例
+
+```typescript
+import { supabase, Database } from '@/lib/supabase';
+
+// ✅ 正しい使用法
+const { data, error } = await supabase
+  .from('chat_messages')
+  .select('*')
+  .eq('chat_group_id', groupId);
+
+// ❌ 避けるべき
+const customClient = createClient(url, key); // 新しいクライアント作成は禁止
+```
+
+## データベース型定義
+[front/lib/supabase.ts](mdc:front/lib/supabase.ts)にあるDatabase型を活用して、型安全なクエリを実装してください。

@@ -1,0 +1,67 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Supabase & AI統合ガイド
+
+## Supabase使用ガイドライン
+
+### クライアント設定
+- **必ず[front/lib/supabase.ts](mdc:front/lib/supabase.ts)のクライアントを使用する**
+- 新しいSupabaseクライアントを作成しない
+- 環境変数は適切に設定し、型チェックを行う
+
+### データベース操作
+- 型安全なクエリを使用（Database型定義を活用）
+- RLS（Row Level Security）ポリシーを考慮
+- リアルタイム機能は必要な場合のみ使用
+
+### 認証
+- Supabase Authを使用してユーザー認証を実装
+- [middleware.ts](mdc:front/middleware.ts)で認証状態を管理
+- セッション管理は自動更新を有効化
+
+### データ構造
+現在のテーブル構成:
+- `profiles`: ユーザープロフィール情報
+- `chat_groups`: チャットグループ（会話セッション）
+- `chat_messages`: チャットメッセージ（role: user/assistant）
+- `bookmarks`: ユーザーのブックマーク機能
+
+## AI統合ガイドライン
+
+### AI SDK使用方法
+- `@ai-sdk/react`のuseChat、useCompletion フックを活用
+- ストリーミングレスポンスでリアルタイム感を演出
+- 複数のAIプロバイダー（OpenAI、Anthropic、Google）をサポート
+
+### プロンプト設計
+- 英語学習に特化したプロンプトを作成
+- ユーザーのレベルに応じた応答を生成
+- 文法修正、語彙説明、発音ガイドを含める
+
+### AIレスポンス処理
+- メッセージはSupabaseに適切に保存
+- エラーハンドリングでフォールバック応答を提供
+- レスポンス品質の監視とログ記録
+
+## データフロー例
+
+```typescript
+// チャットメッセージの作成例
+const createChatMessage = async (chatGroupId: number, role: 'user' | 'assistant', message: string) => {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .insert({
+      chat_group_id: chatGroupId,
+      role,
+      message,
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+```
