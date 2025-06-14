@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# プロジェクト構造ガイド
+
+## アーキテクチャ
+このプロジェクトは英語学習チャットシステムで、以下の技術スタックを使用しています：
+
+- **フロントエンド**: Next.js 15 + React 19 + TypeScript
+- **バックエンド**: Supabase (PostgreSQL + Auth + Realtime)
+- **AI統合**: Vercel AI SDK (Anthropic, Google, OpenAI)
+- **スタイリング**: Tailwind CSS 4
+- **パッケージ管理**: yarn (npm禁止)
+
+## ディレクトリ構造
+
+- `front/` - Next.jsフロントエンドアプリケーション
+  - `app/` - App Routerによるページ構成
+  - `components/` - 再利用可能なReactコンポーネント
+  - `lib/` - ユーティリティとクライアント設定
+    - [supabase.ts](mdc:front/lib/supabase.ts) - Supabaseクライアント設定
+  - `utils/` - ヘルパー関数
+  - [package.json](mdc:front/package.json) - 依存関係管理
+- `supabase/` - データベース設定とマイグレーション
+  - `migrations/` - データベーススキーマ変更履歴
+- `documents/` - プロジェクト文書
+- [README.md](mdc:README.md) - プロジェクト概要
+- [roadmap.md](mdc:roadmap.md) - 学習ロードマップ
+
+## 重要な設定ファイル
+
+- [front/next.config.ts](mdc:front/next.config.ts) - Next.js設定
+- [front/tsconfig.json](mdc:front/tsconfig.json) - TypeScript設定
+- [front/middleware.ts](mdc:front/middleware.ts) - 認証ミドルウェア
