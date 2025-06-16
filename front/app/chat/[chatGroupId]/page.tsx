@@ -6,7 +6,6 @@ import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/components/AuthProvider";
 import {
   getChatMessages,
-  saveChatMessage,
   getChatGroup,
 } from "@/app/actions/chat-messages";
 import {
@@ -248,7 +247,7 @@ export default function ChatGroupPage() {
                     )
                   );
                 }
-              } catch (e) {
+              } catch {
                 // JSON解析エラーは無視
               }
             }

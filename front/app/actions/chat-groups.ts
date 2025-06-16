@@ -2,7 +2,6 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { Database } from "@/lib/supabase";
 
 export async function createChatGroup(formData: FormData) {
   const title = formData.get("title") as string;

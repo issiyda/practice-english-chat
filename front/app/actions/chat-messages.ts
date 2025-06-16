@@ -4,7 +4,6 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Database } from "@/lib/supabase";
 
-type ChatMessage = Database["public"]["Tables"]["chat_messages"]["Row"];
 type ChatMessageInsert =
   Database["public"]["Tables"]["chat_messages"]["Insert"];
 

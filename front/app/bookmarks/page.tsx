@@ -8,12 +8,21 @@ import {
   removeBookmark,
 } from "@/app/actions/bookmarks";
 
-// Supabaseから取得するブックマークデータの型定義（一時的にanyを使用してデバッグ）
+// Supabaseから取得するブックマークデータの型定義
 interface BookmarkData {
   id: number;
   created_at: string;
   chat_message_id: number;
-  chat_messages: any;
+  chat_messages: {
+    id: number;
+    message: string;
+    role: string;
+    created_at: string;
+    chat_group_id: number;
+    chat_groups: {
+      title: string;
+    }[];
+  }[];
 }
 
 // 表示用のブックマークデータ型
@@ -49,7 +58,7 @@ const DeleteModal = ({
         </h3>
         <p className="text-gray-600 mb-2">このブックマークを削除しますか？</p>
         <div className="bg-gray-50 p-3 rounded-md mb-6">
-          <p className="text-sm text-gray-700 font-medium">"{bookmarkText}"</p>
+          <p className="text-sm text-gray-700 font-medium">&quot;{bookmarkText}&quot;</p>
         </div>
         <div className="flex space-x-3 justify-end">
           <button
@@ -293,22 +302,12 @@ const BookmarksPage = () => {
         let messageText = "";
 
         // データ構造を確認して適切に処理
-        if (Array.isArray(chatMessage)) {
+        if (Array.isArray(chatMessage) && chatMessage.length > 0) {
           // 配列の場合
           const message = chatMessage[0];
           messageText = message?.message || "";
-          if (message?.chat_groups) {
-            chatGroupTitle = Array.isArray(message.chat_groups)
-              ? message.chat_groups[0]?.title || "不明なグループ"
-              : message.chat_groups?.title || "不明なグループ";
-          }
-        } else if (chatMessage && typeof chatMessage === "object") {
-          // オブジェクトの場合
-          messageText = chatMessage.message || "";
-          if (chatMessage.chat_groups) {
-            chatGroupTitle = Array.isArray(chatMessage.chat_groups)
-              ? chatMessage.chat_groups[0]?.title || "不明なグループ"
-              : chatMessage.chat_groups?.title || "不明なグループ";
+          if (message?.chat_groups && Array.isArray(message.chat_groups) && message.chat_groups.length > 0) {
+            chatGroupTitle = message.chat_groups[0]?.title || "不明なグループ";
           }
         }
 
