@@ -66,7 +66,7 @@ export async function signUp(
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -130,7 +130,7 @@ export async function signIn(
     // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
     if (
       error instanceof Error &&
-      (error as any).digest?.startsWith("NEXT_REDIRECT")
+      (error as Error & { digest?: string }).digest?.startsWith("NEXT_REDIRECT")
     ) {
       throw error;
     }
@@ -166,7 +166,7 @@ export async function signInWithGoogle() {
     // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
     if (
       error instanceof Error &&
-      (error as any).digest?.startsWith("NEXT_REDIRECT")
+      (error as Error & { digest?: string }).digest?.startsWith("NEXT_REDIRECT")
     ) {
       throw error;
     }
@@ -200,7 +200,7 @@ export async function signInWithApple() {
     // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
     if (
       error instanceof Error &&
-      (error as any).digest?.startsWith("NEXT_REDIRECT")
+      (error as Error & { digest?: string }).digest?.startsWith("NEXT_REDIRECT")
     ) {
       throw error;
     }
@@ -340,7 +340,7 @@ export async function updatePassword(
     // NEXT_REDIRECTエラーは再スローする（これは正常なリダイレクト動作）
     if (
       error instanceof Error &&
-      (error as any).digest?.startsWith("NEXT_REDIRECT")
+      (error as Error & { digest?: string }).digest?.startsWith("NEXT_REDIRECT")
     ) {
       throw error;
     }
