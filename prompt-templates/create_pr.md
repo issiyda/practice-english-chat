@@ -67,4 +67,4 @@ MCP を使って Github で PR を作成してください。既に PR が存在
 
 ## レビュー
 
-/gemini レビューして
+/gemini review
