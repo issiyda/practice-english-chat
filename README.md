@@ -213,3 +213,9 @@ yarn update-types
 - [Supabase Documentation](https://supabase.com/docs)
 - [AI SDK Documentation](https://sdk.vercel.ai/docs)
 - [Tailwind CSS](https://tailwindcss.com/docs)
+
+## レビューしてくれる AI
+
+### Claude
+
+### Gemini
