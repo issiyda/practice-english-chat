@@ -2,9 +2,24 @@ import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { createClient } from "@/utils/supabase/server";
 
+// メッセージの型定義
+interface MessageInput {
+  role: string;
+  content?: string;
+  message?: string;
+}
+
+interface ConvertedMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
 export async function POST(req: Request) {
   try {
-    const { messages, chatGroupId } = await req.json();
+    const {
+      messages,
+      chatGroupId,
+    }: { messages: MessageInput[]; chatGroupId: number } = await req.json();
 
     // chatGroupIdが必要
     if (!chatGroupId) {
@@ -70,6 +85,17 @@ export async function POST(req: Request) {
       });
     }
 
+    // メッセージをAI SDK用の形式に変換
+    const convertedMessages: ConvertedMessage[] = messages.map(
+      (msg: MessageInput) => ({
+        role:
+          msg.role === "ai"
+            ? "assistant"
+            : (msg.role as "user" | "assistant" | "system"),
+        content: msg.content || msg.message || "",
+      })
+    );
+
     // システムプロンプト：英語学習に特化した応答を生成
     const systemPrompt = `あなたは英語学習をサポートするAIアシスタントです。ユーザーから英語表現の要求があった場合、以下のルールに従って回答してください：
 
@@ -89,12 +115,10 @@ export async function POST(req: Request) {
 3. "Let's move on to the next agenda item."
 `;
 
-    console.log("AIモデル呼び出し開始");
-
     const result = await streamText({
       model: google("gemini-1.5-flash"),
       system: systemPrompt,
-      messages,
+      messages: convertedMessages,
       temperature: 0.7,
       maxTokens: 1000,
       onFinish: async (result) => {
@@ -110,8 +134,6 @@ export async function POST(req: Request) {
 
           if (aiMessageError) {
             console.error("AI応答保存エラー:", aiMessageError);
-          } else {
-            console.log("AI応答が正常に保存されました");
           }
 
           // チャットグループのupdated_atを更新
