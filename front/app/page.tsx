@@ -11,7 +11,6 @@ export default async function Home() {
   // プロフィール情報を取得
   let profile = null;
 
-  console.log("user", user);
   if (user) {
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")

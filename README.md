@@ -54,14 +54,17 @@ bookmarks (id, user_id, chat_message_id, created_at, updated_at)
 ### データベース設定
 
 **RLS (Row Level Security) ポリシー:**
+
 - 各テーブルでユーザー固有のデータへのアクセス制御
 - `user_id` を基準とした行レベルセキュリティ
 
 **必要な権限設定:**
+
 - `anon` ロール: 認証前のアクセス
-- `authenticated` ロール: 認証後のCRUD操作
+- `authenticated` ロール: 認証後の CRUD 操作
 
 **初期設定手順:**
+
 1. Supabase プロジェクトで上記テーブルを作成
 2. RLS ポリシーを有効化
 3. 適切な権限をロールに設定
