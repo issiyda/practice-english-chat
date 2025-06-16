@@ -2,6 +2,8 @@
 
 AI 駆動による英語学習チャットシステム
 
+<!-- Devin verification: Repository access confirmed -->
+
 ## 概要
 
 Practice English Chat は、AI（OpenAI、Anthropic、Google）を活用した英語学習プラットフォームです。リアルタイムで AI との会話を通じて、自然な英語学習体験を提供します。
