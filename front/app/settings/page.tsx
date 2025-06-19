@@ -7,7 +7,6 @@ import { useAuth } from "@/components/AuthProvider";
 import {
   getUserProfile,
   updateUserProfile,
-  createUserProfile,
   deleteUserAccount,
 } from "@/app/actions/user-profile";
 import type { Database } from "@/lib/supabase";
