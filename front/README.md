@@ -1,120 +1,156 @@
-# Practice English Chat
+# 🔧 フロントエンド開発ガイド
 
-英語チャット練習アプリです。Supabase 認証機能を実装しており、新規登録機能を提供します。
+Practice English Chat のフロントエンド部分の開発者向けドキュメントです。
 
-## 機能
+## 🚀 開発環境のセットアップ
 
-- ✅ 新規登録機能（Server Actions 使用）
-- 🔐 Supabase 認証統合
-- 🛡️ セキュアな API キー管理
+### 必要な環境
+- Node.js 18+ (推奨: 20+)
+- Yarn または npm
 
-## セットアップ
-
-### 1. 環境変数の設定
-
-`.env.local` ファイルを作成し、以下の環境変数を設定してください：
+### インストール & 起動
 
 ```bash
-# Supabase Configuration
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+# 依存関係のインストール
+yarn install
+
+# 開発サーバー起動
+yarn dev
 ```
 
-**環境変数の取得方法：**
+アプリケーションは [http://localhost:3000](http://localhost:3000) で起動します。
 
-1. [Supabase](https://supabase.com)でプロジェクトを作成
-2. Project Settings > API から以下を取得：
-   - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
-   - `anon public key` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `service_role secret key` → `SUPABASE_SERVICE_ROLE_KEY`
+## 🔑 環境変数
 
-### 2. 依存関係のインストール
+`.env.local` ファイルを作成し、以下の環境変数を設定：
 
 ```bash
+# Supabase（必須）
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# AI APIキー（少なくとも1つは必須）
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+GOOGLE_API_KEY=your_google_api_key
+```
+
+### 🔗 APIキー取得先
+- **Supabase**: [Settings > API](https://supabase.com/dashboard) から取得
+- **OpenAI**: [Platform](https://platform.openai.com/api-keys)
+- **Anthropic**: [Console](https://console.anthropic.com/)
+- **Google**: [AI Studio](https://makersuite.google.com/app/apikey)
+
+## 📁 ディレクトリ構造
+
+```
+app/
+├── (routes)/          # ページルート
+│   ├── auth/          # 認証関連ページ
+│   ├── chat/          # チャット機能
+│   ├── bookmarks/     # ブックマーク
+│   └── settings/      # 設定
+├── api/               # API ルート
+├── actions/           # Server Actions
+└── globals.css        # グローバルスタイル
+
+components/
+├── auth/              # 認証関連コンポーネント
+├── AuthProvider.tsx   # 認証プロバイダ
+├── Sidebar.tsx        # サイドバー
+└── ...
+
+lib/
+├── auth/              # 認証ユーティリティ
+├── supabase.ts        # Supabase設定（重要！）
+└── database.types.ts  # DB型定義
+
+utils/
+└── supabase/          # Supabaseクライアント
+```
+
+## 🔧 開発コマンド
+
+```bash
+yarn dev              # 開発サーバー起動（Turbopack使用）
+yarn build            # プロダクションビルド
+yarn start            # プロダクションサーバー
+yarn lint             # ESLint実行
+yarn update-types     # Supabase型定義更新
+```
+
+## 🛡️ 重要な開発ルール
+
+### Supabaseクライアントの使用
+
+**⚠️ 必ず `lib/supabase.ts` のクライアントを使用してください**
+
+```typescript
+// ✅ 正しい使用方法
+import { supabase } from "@/lib/supabase";
+
+const { data, error } = await supabase
+  .from("chat_messages")
+  .select("*");
+```
+
+### Server Actions
+
+API キーは Server Actions 内でのみ使用し、クライアントサイドに露出させないでください：
+
+```typescript
+// app/actions/example.ts
+"use server";
+
+export async function serverAction() {
+  // APIキーはここで安全に使用
+  const apiKey = process.env.OPENAI_API_KEY;
+}
+```
+
+## 🎯 主要機能の実装
+
+### 認証
+- `components/auth/` - 認証フォーム
+- `lib/auth/actions.ts` - Server Actions
+- `components/AuthProvider.tsx` - 認証状態管理
+
+### チャット
+- `app/chat/` - チャットページ
+- `app/api/chat/route.ts` - ストリーミングAPI
+- AI SDK使用でリアルタイム会話
+
+### ブックマーク
+- `app/bookmarks/` - ブックマーク一覧
+- `app/actions/bookmarks.ts` - ブックマーク操作
+
+## 🐛 よくある問題
+
+### 型エラー
+```bash
+# Supabase型定義を更新
+yarn update-types
+```
+
+### 環境変数が読み込まれない
+- ファイル名が `.env.local` か確認
+- 変数名にタイポがないか確認
+- サーバーを再起動
+
+### ビルドエラー
+```bash
+# 依存関係をクリーンインストール
+rm -rf node_modules yarn.lock
 yarn install
 ```
 
-### 3. 開発サーバーの起動
+## 📚 参考リソース
 
-```bash
-yarn dev
-```
-
-[http://localhost:3000](http://localhost:3000) でアプリケーションにアクセスできます。
-
-### 4. 新規登録ページ
-
-[http://localhost:3000/auth/signup](http://localhost:3000/auth/signup) で新規登録ページにアクセスできます。
-
-## アーキテクチャ
-
-### セキュリティ機能
-
-- **Server Actions**: API キーがクライアントサイドに露出しない
-- **環境変数分離**: クライアント用とサーバー用のキーを適切に分離
-- **フォームバリデーション**: サーバーサイドでの入力検証
-
-### ファイル構成
-
-```
-lib/
-├── auth/
-│   └── actions.ts          # Server Actions (認証処理)
-├── supabase.ts             # Supabase設定
-components/
-├── auth/
-│   └── SignUpForm.tsx      # 新規登録フォーム
-app/
-├── auth/
-│   └── signup/
-│       └── page.tsx        # 新規登録ページ
-```
-
-## 今後の拡張予定
-
-- [ ] ログイン機能
-- [ ] パスワードリセット
-- [ ] プロフィール管理
-- [ ] セッション管理
+- [Next.js App Router](https://nextjs.org/docs/app)
+- [Supabase JavaScript Client](https://supabase.com/docs/reference/javascript)
+- [AI SDK](https://sdk.vercel.ai/docs)
+- [Tailwind CSS](https://tailwindcss.com/docs)
 
 ---
 
-## Original Next.js Documentation
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+📝 詳細なプロジェクト情報は [プロジェクトルートのREADME](../README.md) を参照してください。
