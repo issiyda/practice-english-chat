@@ -31,6 +31,12 @@ export async function POST(req: Request) {
 
     // 最新のメッセージ内容を取得
     const userMessage = messages[messages.length - 1].content;
+    if (!userMessage) {
+      return new Response(
+        JSON.stringify({ error: "Message content is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // サーバーサイドSupabaseクライアントを作成
     const supabase = await createClient();
@@ -103,7 +109,7 @@ export async function POST(req: Request) {
 2. 各表現は実用的で、要求されたシチュエーションで実際に使用できるものにする
 3. 初級者から上級者まで使えるよう、難易度の異なる表現を含める
 4. 回答は英語で行う
-5. 分だけで余計な解説はしない
+5. 文だけで余計な解説はしない
 
 例：
 "会議で使えるフレーズ"と要求された場合：
@@ -112,7 +118,7 @@ export async function POST(req: Request) {
 
 2. "I'd like to table this discussion for now."
 
-3. "Let's move on to the next agenda item."
+3. "Could we circle back to this issue later?"
 `;
 
     const result = await streamText({
@@ -124,6 +130,7 @@ export async function POST(req: Request) {
       onFinish: async (result) => {
         // AIの応答が完了したらchat_messagesテーブルに保存
         try {
+          // トランザクションを使用してAIメッセージの保存とグループ更新を同時実行
           const { error: aiMessageError } = await supabase
             .from("chat_messages")
             .insert({
@@ -134,22 +141,25 @@ export async function POST(req: Request) {
 
           if (aiMessageError) {
             console.error("AI応答保存エラー:", aiMessageError);
+            return;
           }
 
           // チャットグループのupdated_atを更新
-          await supabase
+          const { error: updateError } = await supabase
             .from("chat_groups")
             .update({ updated_at: new Date().toISOString() })
             .eq("id", chatGroupId);
+
+          if (updateError) {
+            console.error("チャットグループ更新エラー:", updateError);
+          }
         } catch (error) {
           console.error("AI応答保存中の予期しないエラー:", error);
         }
       },
     });
 
-    const response = result.toDataStreamResponse();
-
-    return response;
+    return result.toDataStreamResponse();
   } catch (error) {
     console.error("API エラー:", error);
     return new Response(

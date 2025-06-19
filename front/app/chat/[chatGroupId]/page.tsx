@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
-import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/components/AuthProvider";
 import {
-  getChatMessages,
+  getChatMessagesWithBookmarks,
   getChatGroup,
 } from "@/app/actions/chat-messages";
 import {
   addBookmark,
   removeBookmark,
-  checkBookmarkStatus,
 } from "@/app/actions/bookmarks";
-import type { Database } from "@/lib/supabase";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import ErrorMessage from "@/components/ui/ErrorMessage";
+import type { Tables } from "@/lib/supabase";
 
-type ChatMessage = Database["public"]["Tables"]["chat_messages"]["Row"];
-type ChatGroup = Database["public"]["Tables"]["chat_groups"]["Row"];
+type ChatMessage = Tables<"chat_messages">;
+type ChatGroup = Tables<"chat_groups">;
 
 interface MessageWithStreamIndex extends ChatMessage {
   streamIndex?: number;
@@ -29,9 +29,10 @@ export default function ChatGroupPage() {
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const chatGroupId = params.chatGroupId
-    ? parseInt(params.chatGroupId as string)
-    : null;
+  const chatGroupId = useMemo(() => 
+    params.chatGroupId ? parseInt(params.chatGroupId as string) : null, 
+    [params.chatGroupId]
+  );
 
   const [chatGroup, setChatGroup] = useState<ChatGroup | null>(null);
   const [messages, setMessages] = useState<MessageWithStreamIndex[]>([]);
@@ -42,29 +43,12 @@ export default function ChatGroupPage() {
   const [bookmarkLoading, setBookmarkLoading] = useState<number | null>(null);
 
   // メッセージの最下部にスクロールする関数
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // ブックマーク状態をチェックする関数
-  const checkBookmarks = async (messages: MessageWithStreamIndex[]) => {
-    if (!user?.id) return messages;
-
-    const updatedMessages = await Promise.all(
-      messages.map(async (message) => {
-        if (message.role === "ai" && message.id !== -1) {
-          const result = await checkBookmarkStatus(message.id, user.id);
-          return { ...message, isBookmarked: result.isBookmarked };
-        }
-        return message;
-      })
-    );
-
-    return updatedMessages;
-  };
+  }, []);
 
   // ブックマークの切り替え処理
-  const toggleBookmark = async (messageId: number) => {
+  const toggleBookmark = useCallback(async (messageId: number) => {
     if (!user?.id || bookmarkLoading === messageId) return;
 
     setBookmarkLoading(messageId);
@@ -95,11 +79,15 @@ export default function ChatGroupPage() {
     } finally {
       setBookmarkLoading(null);
     }
-  };
+  }, [user?.id, bookmarkLoading, messages]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -109,7 +97,7 @@ export default function ChatGroupPage() {
         setIsLoadingData(true);
         const [groupData, messagesData] = await Promise.all([
           getChatGroup(chatGroupId, user.id),
-          getChatMessages(chatGroupId, user.id),
+          getChatMessagesWithBookmarks(chatGroupId, user.id),
         ]);
 
         if (!groupData) {
@@ -119,16 +107,14 @@ export default function ChatGroupPage() {
 
         setChatGroup(groupData);
 
-        // メッセージにブックマーク状態を追加
-        const messagesWithBookmarks = await checkBookmarks(
-          messagesData.map((msg) => ({
-            ...msg,
-            streamIndex: undefined,
-            isStreaming: false,
-          }))
-        );
+        // メッセージの設定
+        const messagesWithStreamProps = messagesData.map((msg) => ({
+          ...msg,
+          streamIndex: undefined,
+          isStreaming: false,
+        }));
 
-        setMessages(messagesWithBookmarks);
+        setMessages(messagesWithStreamProps);
 
         if (messagesData.length === 0) {
           const welcomeMessage: MessageWithStreamIndex = {
@@ -156,7 +142,7 @@ export default function ChatGroupPage() {
   }, [chatGroupId, user?.id]);
 
   // メッセージ送信処理
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!input.trim() || !chatGroupId || !user?.id || isLoading) return;
 
     const userMessage = input.trim();
@@ -265,15 +251,13 @@ export default function ChatGroupPage() {
       // データベースを更新するためにメッセージを再読み込み
       setTimeout(async () => {
         try {
-          const updatedMessages = await getChatMessages(chatGroupId, user.id);
-          const messagesWithBookmarks = await checkBookmarks(
-            updatedMessages.map((msg) => ({
-              ...msg,
-              streamIndex: undefined,
-              isStreaming: false,
-            }))
-          );
-          setMessages(messagesWithBookmarks);
+          const updatedMessages = await getChatMessagesWithBookmarks(chatGroupId, user.id);
+          const messagesWithStreamProps = updatedMessages.map((msg) => ({
+            ...msg,
+            streamIndex: undefined,
+            isStreaming: false,
+          }));
+          setMessages(messagesWithStreamProps);
         } catch (err) {
           console.error("メッセージ再読み込みエラー:", err);
         }
@@ -289,24 +273,21 @@ export default function ChatGroupPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, chatGroupId, user?.id, isLoading, messages]);
 
   // Enterキーでメッセージ送信
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [handleSendMessage]);
 
   if (!chatGroupId) {
     return (
       <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-64 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-500">無効なチャットグループIDです</p>
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <ErrorMessage message="無効なチャットグループIDです" />
         </div>
       </div>
     );
@@ -315,9 +296,8 @@ export default function ChatGroupPage() {
   if (isLoadingData) {
     return (
       <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-64 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="flex-1 flex items-center justify-center">
+          <LoadingSpinner size="lg" />
         </div>
       </div>
     );
@@ -326,17 +306,8 @@ export default function ChatGroupPage() {
   if (error) {
     return (
       <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-64 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-red-500">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              再試行
-            </button>
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <ErrorMessage message={error} onRetry={clearError} />
         </div>
       </div>
     );
@@ -344,8 +315,7 @@ export default function ChatGroupPage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 ml-64 flex flex-col">
+      <div className="flex-1 flex flex-col">
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <h1 className="text-2xl font-bold text-gray-900">
             {chatGroup?.title || "チャット"}
@@ -408,7 +378,7 @@ export default function ChatGroupPage() {
                           }
                         >
                           {bookmarkLoading === message.id ? (
-                            <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                            <LoadingSpinner size="sm" />
                           ) : (
                             <svg
                               viewBox="0 0 24 24"

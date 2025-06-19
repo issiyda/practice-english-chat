@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getChatGroups, deleteChatGroup } from "@/app/actions/chat-groups";
 import CreateChatGroupModal from "./CreateChatGroupModal";
-import type { Database } from "@/lib/supabase";
+import LoadingSpinner from "./ui/LoadingSpinner";
+import EmptyState from "./ui/EmptyState";
+import type { Tables } from "@/lib/supabase";
 
-type ChatGroup = Database["public"]["Tables"]["chat_groups"]["Row"];
+type ChatGroup = Tables<"chat_groups">;
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -17,20 +19,18 @@ const Sidebar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isActive = (path: string) => {
+  const isActive = useCallback((path: string) => {
     return pathname === path;
-  };
+  }, [pathname]);
 
   // 現在のチャットグループIDを取得
-  const getCurrentChatGroupId = () => {
+  const currentChatGroupId = useMemo(() => {
     const match = pathname.match(/^\/chat\/(\d+)$/);
     return match ? parseInt(match[1]) : null;
-  };
-
-  const currentChatGroupId = getCurrentChatGroupId();
+  }, [pathname]);
 
   // チャットグループデータの読み込み
-  const loadChatGroups = async () => {
+  const loadChatGroups = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -42,13 +42,13 @@ const Sidebar = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     loadChatGroups();
-  }, [user?.id]);
+  }, [loadChatGroups]);
 
-  const handleDeleteGroup = async (groupId: number, e: React.MouseEvent) => {
+  const handleDeleteGroup = useCallback(async (groupId: number, e: React.MouseEvent) => {
     e.stopPropagation();
 
     if (!user?.id) return;
@@ -62,11 +62,19 @@ const Sidebar = () => {
         alert("チャットグループの削除に失敗しました");
       }
     }
-  };
+  }, [user?.id, loadChatGroups]);
 
-  const handleModalSuccess = async () => {
+  const handleModalSuccess = useCallback(async () => {
     await loadChatGroups();
-  };
+  }, [loadChatGroups]);
+
+  const handleOpenModal = useCallback(() => {
+    setIsModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
 
   return (
     <>
@@ -92,7 +100,7 @@ const Sidebar = () => {
                 チャットグループ
               </h2>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleOpenModal}
                 className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                 title="新しいグループを作成"
               >
@@ -117,13 +125,14 @@ const Sidebar = () => {
           <div className="flex-1 overflow-y-auto p-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <LoadingSpinner size="sm" />
               </div>
             ) : chatGroups.length === 0 ? (
-              <div className="text-center py-4 text-gray-500 text-sm">
-                <p>チャットグループがありません</p>
-                <p className="mt-1">新しいグループを作成してください</p>
-              </div>
+              <EmptyState 
+                title="チャットグループがありません"
+                description="新しいグループを作成してください"
+                className="py-4"
+              />
             ) : (
               <div className="space-y-1">
                 {chatGroups.map((group) => (
@@ -143,11 +152,7 @@ const Sidebar = () => {
                       </span>
                     </div>
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleDeleteGroup(group.id, e);
-                      }}
+                      onClick={(e) => handleDeleteGroup(group.id, e)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all flex-shrink-0"
                       title="グループを削除"
                     >
@@ -315,7 +320,7 @@ const Sidebar = () => {
       {/* チャットグループ作成モーダル */}
       <CreateChatGroupModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         onSuccess={handleModalSuccess}
       />
     </>

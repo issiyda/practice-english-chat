@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { usePathname } from "next/navigation";
 import { signOut, getUser } from "@/lib/auth/actions";
 import Sidebar from "./Sidebar";
+import { supabase } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -31,6 +32,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
 
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("ログアウトエラー:", error);
+    }
+  }, []);
+
   useEffect(() => {
     // 初期認証状態の取得
     const checkAuth = async () => {
@@ -47,19 +56,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     checkAuth();
 
-    // ページ変更時に認証状態を再確認
-    const interval = setInterval(checkAuth, 30000); // 30秒ごとに確認
+    // Supabaseの認証状態変更リスナーを設定
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event: AuthChangeEvent, session: Session | null) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          setUser(session.user);
+        }
+      }
+    );
 
-    return () => clearInterval(interval);
-  }, [pathname]);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error("ログアウトエラー:", error);
-    }
-  };
+    // クリーンアップ
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // ログインが必要な画面のパス（認証画面は除外）
   const protectedPaths = ["/chat", "/bookmarks", "/settings"];
