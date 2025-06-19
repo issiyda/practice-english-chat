@@ -1,163 +1,118 @@
-# Practice English Chat 🗨️
+# 🗨️ Practice English Chat
 
-AI 駆動による英語学習チャットシステム
+AIとの会話で楽しく英語を学習できるWebアプリケーション
 
-<!-- Devin verification: Repository access confirmed -->
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
+![AI](https://img.shields.io/badge/AI-OpenAI%20%7C%20Claude%20%7C%20Gemini-orange)
 
-## 概要
+## ✨ 特徴
 
-Practice English Chat は、AI（OpenAI、Anthropic、Google）を活用した英語学習プラットフォームです。リアルタイムで AI との会話を通じて、自然な英語学習体験を提供します。
+🤖 **AIとリアルタイム会話** - OpenAI、Claude、Geminiとストリーミングで自然な会話  
+📱 **レスポンシブデザイン** - PC・スマホどちらでも快適な学習体験  
+� **会話履歴の保存** - 過去の学習内容をいつでも振り返り可能  
+🔖 **重要な発言をブックマーク** - 学び直したい表現を簡単に保存  
+🔐 **安全なユーザー管理** - Supabaseによる認証とデータ保護  
 
-## 🚀 技術スタック
-
-### フロントエンド
-
-- **Next.js 15** - React フレームワーク（Turbopack 対応）
-- **React 19** - UI ライブラリ
-- **TypeScript** - 型安全な開発
-- **Tailwind CSS** - ユーティリティファースト CSS
-- **AI SDK** - AI 統合ライブラリ
-
-### バックエンド・データベース
-
-- **Supabase** - バックエンドサービス（PostgreSQL, 認証, リアルタイム）
-- **Row Level Security (RLS)** - データセキュリティ
-
-### AI 統合
-
-- **OpenAI API** - GPT-4/3.5
-- **Anthropic Claude** - Claude-3
-- **Google Gemini** - Gemini Pro
-- **AI SDK** - ストリーミングレスポンス対応
-
-### バリデーション・その他
-
-- **Zod** - スキーマバリデーション
-- **ESLint** - コード品質管理
-
-## 📊 データベース構造
-
-```sql
--- ユーザープロフィール
-profiles (id, user_id, name, created_at, updated_at)
-
--- チャットグループ（会話セッション）
-chat_groups (id, user_id, title, created_at, updated_at)
-
--- チャットメッセージ
-chat_messages (id, chat_group_id, role, message, created_at, updated_at)
-
--- ブックマーク機能
-bookmarks (id, user_id, chat_message_id, created_at, updated_at)
-```
-
-### データベース設定
-
-**RLS (Row Level Security) ポリシー:**
-
-- 各テーブルでユーザー固有のデータへのアクセス制御
-- `user_id` を基準とした行レベルセキュリティ
-
-**必要な権限設定:**
-
-- `anon` ロール: 認証前のアクセス
-- `authenticated` ロール: 認証後の CRUD 操作
-
-**初期設定手順:**
-
-1. Supabase プロジェクトで上記テーブルを作成
-2. RLS ポリシーを有効化
-3. 適切な権限をロールに設定
-
-## 🛠️ セットアップ
+## � クイックスタート
 
 ### 必要な環境
+- Node.js 18以上（推奨: 20以上）
+- Yarn または npm
 
-- Node.js 18+ (推奨: 20+)
-- Yarn 1.22+ または npm 8+
-
-### 1. リポジトリのクローン
+### 1. セットアップ
 
 ```bash
+# リポジトリをクローン
 git clone <repository-url>
-cd practice-english-chat
-```
+cd practice-english-chat/front
 
-### 2. フロントエンドのセットアップ
-
-```bash
-cd front
+# 依存関係をインストール
 yarn install
 ```
 
-### 3. 環境変数の設定
+### 2. 環境変数の設定
 
-`front/.env.local` を作成し、以下を設定：
+`front/.env.local` ファイルを作成：
 
-```env
-# Supabase
+```bash
+# Supabase（必須）
 SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# AI API Keys
-# ⚠️ 実際の本番環境では .env.local に設定し、決してコミットしないでください
+# AI APIキー（少なくとも1つは必須）
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_API_KEY=your_google_api_key
 ```
 
-### 4. データベースのマイグレーション
+**📝 環境変数の取得方法:**
+- **Supabase**: [公式サイト](https://supabase.com)でプロジェクト作成 → Settings > API
+- **OpenAI**: [OpenAI Platform](https://platform.openai.com/api-keys)
+- **Anthropic**: [Anthropic Console](https://console.anthropic.com/)
+- **Google**: [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+### 3. データベースセットアップ
+
+Supabaseプロジェクトで以下のマイグレーションを実行：
 
 ```bash
-# Supabaseプロジェクトをセットアップ済みの場合
-cd front
-yarn update-types  # TypeScript型定義を生成
+# プロジェクトルートから
+cd supabase
+# マイグレーションファイルをSupabaseにアップロード
 ```
 
-### 5. 開発サーバーの起動
+### 4. 開発サーバー起動
 
 ```bash
 cd front
 yarn dev
 ```
 
-アプリケーションは `http://localhost:3000` で起動します。
+🎉 **完了！** `http://localhost:3000` でアプリケーションが起動します
 
-## 🎯 主要機能
+## 📱 使い方
 
-### 💬 AI チャット機能
+1. **新規登録/ログイン** - メールアドレスでアカウント作成
+2. **チャット開始** - 新しい会話を開始してAIと英語で対話
+3. **学習記録** - 会話は自動保存され、いつでも振り返り可能
+4. **ブックマーク** - 重要な表現や間違いを記録
+5. **継続学習** - 毎日の学習で英語力を向上
 
-- リアルタイムストリーミングレスポンス
-- 複数の AI プロバイダー対応
-- 英語学習に特化したプロンプト設計
+## 🛠️ 技術スタック
 
-### 👤 ユーザー認証
+### フロントエンド
+- **Next.js 15** - React フレームワーク（App Router + Turbopack）
+- **TypeScript** - 型安全な開発
+- **Tailwind CSS** - モダンなスタイリング
 
-- Supabase Auth による安全な認証
-- 自動セッション管理
-- プロフィール自動作成
+### バックエンド
+- **Supabase** - 認証・データベース・リアルタイム機能
+- **PostgreSQL** - メインデータベース
+- **Row Level Security** - データ保護
 
-### 📁 チャット管理
+### AI統合
+- **AI SDK** - ストリーミングレスポンス対応
+- **OpenAI GPT-4/3.5** - 高品質な会話AI
+- **Anthropic Claude** - 自然な対話AI
+- **Google Gemini** - 多言語対応AI
 
-- グループ化された会話セッション
-- 会話履歴の永続化
-- タイトル自動生成
+## � データベース構造
 
-### 🔖 ブックマーク機能
+```sql
+profiles         -- ユーザープロフィール
+chat_groups      -- 会話セッション
+chat_messages    -- チャットメッセージ
+bookmarks        -- ブックマーク機能
+```
 
-- 重要なメッセージの保存
-- ユーザー別ブックマーク管理
+詳細な設計書は [`documents/`](./documents/) フォルダを参照してください。
 
-### 📱 レスポンシブデザイン
+## 🔧 開発者向け情報
 
-- モバイル・デスクトップ対応
-- モダンな UI/UX
-
-## 🔧 開発ガイドライン
-
-### Supabase 使用規則
-
-⚠️ **重要**: 新しい Supabase クライアントを作成せず、必ず `front/lib/supabase.ts` のクライアントを使用してください。
+### 重要なルール
+⚠️ **Supabaseクライアント**: 必ず `front/lib/supabase.ts` のクライアントを使用
 
 ```typescript
 import { supabase } from "@/lib/supabase";
@@ -166,36 +121,60 @@ import { supabase } from "@/lib/supabase";
 const { data, error } = await supabase.from("chat_messages").select("*");
 ```
 
-### AI 統合のベストプラクティス
-
-- `@ai-sdk/react` のフックを活用
-- エラーハンドリングでフォールバック応答を実装
-- レスポンス品質の監視とログ記録
-
-### コードスタイル
-
-- TypeScript の型安全性を最大限活用
-- ESLint ルールに従った開発
-- Zod によるランタイムバリデーション
-
-## 📝 開発コマンド
+### 開発コマンド
 
 ```bash
-# 開発サーバー起動（Turbopack使用）
-yarn dev
+yarn dev          # 開発サーバー起動
+yarn build        # プロダクションビルド
+yarn start        # プロダクションサーバー
+yarn lint         # コード品質チェック
+yarn update-types # Supabase型定義更新
+```
 
-# プロダクションビルド
-yarn build
+### ファイル構造
 
-# プロダクションサーバー起動
-yarn start
+```
+front/
+├── app/              # Next.js App Router
+│   ├── auth/         # 認証ページ
+│   ├── chat/         # チャット機能
+│   └── api/          # API エンドポイント
+├── components/       # 再利用可能コンポーネント
+├── lib/              # ユーティリティ・設定
+└── utils/            # Supabaseクライアント
+```
 
-# リンタ実行
-yarn lint
+## � トラブルシューティング
 
-# Supabase型定義更新
+### よくある問題
+
+**❌ Supabaseに接続できない**
+- `.env.local` の環境変数を確認
+- Supabaseプロジェクトの設定を確認
+
+**❌ AIが応答しない**
+- APIキーの有効性を確認
+- 使用量制限に達していないか確認
+
+**❌ ビルドエラー**
+```bash
+# 依存関係を再インストール
+rm -rf node_modules yarn.lock
+yarn install
+```
+
+**❌ TypeScriptエラー**
+```bash
+# Supabase型定義を更新
 yarn update-types
 ```
+
+## 📚 関連ドキュメント
+
+- [要件定義書](./documents/要件定義書.md)
+- [画面設計書](./documents/画面設計書.md)
+- [API設計書](./documents/API設計書.md)
+- [DB設計書](./documents/DB設計書.md)
 
 ## 🤝 コントリビューション
 
@@ -203,19 +182,19 @@ yarn update-types
 2. 変更をコミット
 3. プルリクエストを作成
 
-## 📜 ライセンス
+詳細は [コントリビューションガイド](./documents/プロンプト書き方.md) を参照
 
-このプロジェクトは MIT ライセンスの下で公開されています。
+## � ライセンス
 
-## 🔗 関連リンク
+MIT ライセンスで公開されています。
+
+## 🔗 参考リンク
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 - [AI SDK Documentation](https://sdk.vercel.ai/docs)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 
-## レビューしてくれる AI
+---
 
-### Claude
-
-### Gemini
+**🚀 今すぐ始めて、AIとの英語学習を体験してみましょう！**
